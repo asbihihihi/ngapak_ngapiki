@@ -125,6 +125,12 @@ class HomePage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -170,29 +176,64 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xffF7F8F3),
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: const Color(0xff2D6A4F),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_business),
-            label: "Masuk",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.exit_to_app),
-            label: "Keluar",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.print),
-            label: "Nota",
-          ),
-        ],
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+
+        child: BottomNavigationBar(
+          currentIndex: 0,
+          selectedItemColor: const Color(0xff2D6A4F),
+          unselectedItemColor: Colors.grey,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+
+          items: const [
+
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: "Home",
+            ),
+
+            BottomNavigationBarItem(
+              icon: Icon(Icons.login),
+              label: "Masuk",
+            ),
+
+            BottomNavigationBarItem(
+              icon: CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xff2D6A4F),
+                child: Icon(
+                  Icons.qr_code_scanner,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              label: "QR",
+            ),
+
+            BottomNavigationBarItem(
+              icon: Icon(Icons.logout),
+              label: "Keluar",
+            ),
+
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long),
+              label: "Nota",
+            ),
+          ],
+        ),
       ),
 
       body: SafeArea(
@@ -202,13 +243,47 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              Text(
-                "Ngapak Ngapiki Farm",
-                style: GoogleFonts.poppins(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xff1B4332),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      Text(
+                        "Halo Admin 👋",
+                        style: GoogleFonts.poppins(
+                          color: Colors.black54,
+                          fontSize: 15,
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      Text(
+                        "Ngapak Ngapiki Farm",
+                        style: GoogleFonts.poppins(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xff1B4332),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none,
+                      color: Color(0xff2D6A4F),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 10),
@@ -239,6 +314,77 @@ class HomePage extends StatelessWidget {
 
               const SizedBox(height: 25),
 
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xff2D6A4F),
+                      Color(0xff40916C),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+
+                child: Row(
+                  children: [
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          Text(
+                            "Scan QR Domba",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            "Scan QR untuk melihat data domba dengan cepat.",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              Text(
+                "Menu Cepat",
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -250,12 +396,11 @@ class HomePage extends StatelessWidget {
 
                   menuCard(
                     context,
-                    Icons.print,
-                    "Cetak Nota",
+                    Icons.account_balance_wallet,
+                    "Keuangan",
                     Colors.green,
                     const SizedBox(),
                   ),
-                  
 
                   menuCard(
                     context,
@@ -266,12 +411,36 @@ class HomePage extends StatelessWidget {
                   ),
 
                   menuCard(
-  context,
-  Icons.list_alt,
-  "Data Domba",
-  Colors.orange,
-  const DataDombaPage(),
-),
+                    context,
+                    Icons.list_alt,
+                    "Data Domba",
+                    Colors.orange,
+                    const DataDombaPage(),
+                  ),
+
+                  menuCard(
+                    context,
+                    Icons.analytics,
+                    "Statistik",
+                    Colors.red,
+                    const SizedBox(),
+                  ),
+
+                  menuCard(
+                    context,
+                    Icons.settings,
+                    "Pengaturan",
+                    Colors.teal,
+                    const SizedBox(),
+                  ),
+
+                  menuCard(
+                    context,
+                    Icons.history,
+                    "Riwayat",
+                    Colors.deepOrange,
+                    const SizedBox(),
+                  ),
                 ],
               ),
 
@@ -358,6 +527,8 @@ class HomePage extends StatelessWidget {
                 Icons.print,
                 Colors.blue,
               ),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),

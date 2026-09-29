@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class DombaMasukPage extends StatefulWidget {
   const DombaMasukPage({super.key});
@@ -15,11 +19,47 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
   final tanggalController = TextEditingController();
   final asalController = TextEditingController();
-  final jumlahController = TextEditingController();
   final jenisController = TextEditingController();
   final beratController = TextEditingController();
   final hargaController = TextEditingController();
   final keteranganController = TextEditingController();
+
+  String kodeDomba = "";
+  String qrData = "";
+
+  File? imageFile;
+
+  final ImagePicker picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    generateKode();
+  }
+
+  void generateKode() {
+
+    int totalData = dombaBox.length + 1;
+
+    setState(() {
+      kodeDomba = "KMB${totalData.toString().padLeft(3, '0')}";
+    });
+  }
+
+  Future pickImage() async {
+
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (pickedFile != null) {
+
+      setState(() {
+        imageFile = File(pickedFile.path);
+      });
+    }
+  }
 
   Widget buildInput({
     required String label,
@@ -56,6 +96,27 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
         TextField(
           controller: controller,
+          readOnly: label == "Tanggal Masuk",
+
+          onTap: () async {
+
+            if (label == "Tanggal Masuk") {
+
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+
+              if (pickedDate != null) {
+
+                controller.text =
+                    "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+              }
+            }
+          },
+
           decoration: InputDecoration(
             hintText: hint,
 
@@ -89,147 +150,50 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
     return Scaffold(
       backgroundColor: const Color(0xffF4F6F5),
 
+      appBar: AppBar(
+        backgroundColor: const Color(0xff0E9F4B),
+        elevation: 0,
+
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Colors.white,
+          ),
+        ),
+
+        title: Text(
+          "Input Domba",
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        centerTitle: true,
+      ),
+
       body: SingleChildScrollView(
         child: Column(
           children: [
 
-            /// HEADER
-            Stack(
-              children: [
+            Container(
+              height: 220,
+              width: double.infinity,
 
-                Container(
-                  height: 280,
-                  width: double.infinity,
-
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xff0E9F4B),
-                        Color(0xff087F3A),
-                      ],
-                    ),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage(
+                    "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=1200&auto=format&fit=crop",
                   ),
+                  fit: BoxFit.cover,
                 ),
-
-                Positioned(
-                  top: 55,
-                  left: 20,
-
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  top: 60,
-                  left: 0,
-                  right: 0,
-
-                  child: Center(
-                    child: Text(
-                      "Input Domba Masuk",
-
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                      ),
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  bottom: 0,
-
-                  child: Container(
-                    width: MediaQuery.of(context).size.width,
-                    height: 220,
-
-                    decoration: const BoxDecoration(
-                      image: DecorationImage(
-                        image: NetworkImage(
-                          "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=1200&auto=format&fit=crop",
-                        ),
-
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  bottom: 30,
-                  right: 20,
-
-                  child: Container(
-                    width: 300,
-                    padding: const EdgeInsets.all(18),
-
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-
-                    child: Row(
-                      children: [
-
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white24,
-
-                          child: const Icon(
-                            Icons.pets,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-
-                        const SizedBox(width: 16),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-
-                            children: [
-
-                              Text(
-                                "Input Domba Masuk",
-
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                              ),
-
-                              const SizedBox(height: 5),
-
-                              Text(
-                                "Catat data domba yang masuk ke kandang",
-
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
 
-            /// FORM
             Padding(
               padding: const EdgeInsets.all(20),
 
@@ -244,9 +208,46 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                 child: Column(
                   children: [
 
+                    /// KODE
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+
+                      decoration: BoxDecoration(
+                        color: const Color(0xff0E9F4B),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          Text(
+                            "Kode Domba",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            kodeDomba,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 25),
+
                     buildInput(
                       label: "Tanggal Masuk",
-                      hint: "21 Mei 2026",
+                      hint: "Pilih tanggal masuk",
                       controller: tanggalController,
                       icon: Icons.calendar_month,
                     ),
@@ -256,13 +257,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       hint: "Pilih asal domba",
                       controller: asalController,
                       icon: Icons.local_shipping,
-                    ),
-
-                    buildInput(
-                      label: "Jumlah Domba",
-                      hint: "Masukkan jumlah domba",
-                      controller: jumlahController,
-                      icon: Icons.pets,
                     ),
 
                     buildInput(
@@ -294,64 +288,83 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                     ),
 
                     /// FOTO
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(30),
+                    GestureDetector(
+                      onTap: pickImage,
 
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
 
-                        border: Border.all(
-                          color: const Color(0xff0E9F4B),
-                          width: 1.5,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+
+                          border: Border.all(
+                            color: const Color(0xff0E9F4B),
+                            width: 1.5,
+                          ),
                         ),
-                      ),
 
-                      child: Column(
-                        children: [
+                        child: Column(
+                          children: [
 
-                          CircleAvatar(
-                            radius: 35,
+                            if (imageFile != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Image.file(
+                                  imageFile!,
+                                  height: 220,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              Column(
+                                children: [
 
-                            backgroundColor:
-                                const Color(0xff0E9F4B)
-                                    .withOpacity(0.1),
+                                  CircleAvatar(
+                                    radius: 35,
 
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Color(0xff0E9F4B),
-                              size: 35,
-                            ),
-                          ),
+                                    backgroundColor:
+                                        const Color(0xff0E9F4B)
+                                            .withOpacity(0.1),
 
-                          const SizedBox(height: 15),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      color: Color(0xff0E9F4B),
+                                      size: 35,
+                                    ),
+                                  ),
 
-                          Text(
-                            "Tap untuk tambah foto",
+                                  const SizedBox(height: 15),
 
-                            style: GoogleFonts.poppins(
-                              color: const Color(0xff0E9F4B),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
+                                  Text(
+                                    "Tap untuk tambah foto",
 
-                          const SizedBox(height: 5),
+                                    style: GoogleFonts.poppins(
+                                      color: const Color(0xff0E9F4B),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
 
-                          Text(
-                            "Maksimal 5 foto",
+                                  const SizedBox(height: 5),
 
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
+                                  Text(
+                                    "Ambil dari galeri HP",
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 30),
 
-                    /// BUTTON SIMPAN
+                    /// BUTTON QR
                     SizedBox(
                       width: double.infinity,
                       height: 60,
@@ -361,7 +374,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                         onPressed: () async {
 
                           if (asalController.text.isEmpty ||
-                              jumlahController.text.isEmpty ||
                               jenisController.text.isEmpty) {
 
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -374,40 +386,47 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                             return;
                           }
 
+                          qrData = kodeDomba;
+
                           await dombaBox.add({
 
-                            "tanggal": tanggalController.text,
-                            "asal": asalController.text,
-                            "jumlah": jumlahController.text,
-                            "jenis": jenisController.text,
-                            "berat": beratController.text,
-                            "harga": hargaController.text,
-                            "keterangan": keteranganController.text,
+                                "kode": kodeDomba,
+                                "tanggal": tanggalController.text,
+                                "asal": asalController.text,
+                                "jenis": jenisController.text,
+                                "berat": beratController.text,
+                                "harga": hargaController.text,
+                                "keterangan": keteranganController.text,
+                                "foto": imageFile?.path ?? "",
+
+                                "status": "aktif",
+
+                                "namaPembeli": "",
+                                "waPembeli": "",
+                                "asalPembeli": "",
+                                "hargaJual": "",
+                                "maps": "",
+                                "kondisi": "",
+                                "fotoJual": "",
 
                           });
+
+                          setState(() {});
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                "Data domba berhasil disimpan",
+                                "QR Domba Berhasil Dibuat",
                               ),
                               backgroundColor: Colors.green,
                             ),
                           );
-
-                          tanggalController.clear();
-                          asalController.clear();
-                          jumlahController.clear();
-                          jenisController.clear();
-                          beratController.clear();
-                          hargaController.clear();
-                          keteranganController.clear();
                         },
 
-                        icon: const Icon(Icons.check_circle),
+                        icon: const Icon(Icons.qr_code),
 
                         label: Text(
-                          "Simpan",
+                          "Generate QR",
 
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
@@ -425,45 +444,59 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 25),
 
-                    /// BUTTON BATAL
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
+                    /// QR RESULT
+                    if (qrData.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(25),
 
-                      child: OutlinedButton.icon(
-
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-
-                        icon: const Icon(Icons.close),
-
-                        label: Text(
-                          "Batal",
-
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                            ),
+                          ],
                         ),
 
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              const Color(0xff0E9F4B),
+                        child: Column(
+                          children: [
 
-                          side: const BorderSide(
-                            color: Color(0xff0E9F4B),
-                            width: 1.5,
-                          ),
+                            Text(
+                              "QR Domba",
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                              ),
+                            ),
 
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
+                            const SizedBox(height: 20),
+
+                            QrImageView(
+                              data: qrData,
+                              version: QrVersions.auto,
+                              size: 220,
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            Text(
+                              kodeDomba,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 24,
+                                color: const Color(0xff0E9F4B),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),

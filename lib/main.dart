@@ -9,7 +9,8 @@ void main() async {
 
   await Hive.initFlutter();
 
-  await Hive.openBox('dombaBox');
+await Hive.openBox('dombaBox');
+await Hive.openBox('penjualanBox');
 
   runApp(const MyApp());
 }
