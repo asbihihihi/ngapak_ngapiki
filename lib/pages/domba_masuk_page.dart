@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../farm_data.dart';
+import '../money_format.dart';
+import 'domba_qr_page.dart';
 
 class DombaMasukPage extends StatefulWidget {
   const DombaMasukPage({super.key});
@@ -14,18 +16,17 @@ class DombaMasukPage extends StatefulWidget {
 }
 
 class _DombaMasukPageState extends State<DombaMasukPage> {
-
-  final dombaBox = Hive.box('dombaBox');
-
   final tanggalController = TextEditingController();
   final asalController = TextEditingController();
   final jenisController = TextEditingController();
   final beratController = TextEditingController();
   final hargaController = TextEditingController();
   final keteranganController = TextEditingController();
+  String kelamin = 'Jantan';
 
   String kodeDomba = "";
   String qrData = "";
+  bool saving = false;
 
   File? imageFile;
 
@@ -38,26 +39,138 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
   }
 
   void generateKode() {
+    kodeDomba = FarmData.nextCode();
+  }
 
-    int totalData = dombaBox.length + 1;
-
-    setState(() {
-      kodeDomba = "KMB${totalData.toString().padLeft(3, '0')}";
-    });
+  @override
+  void dispose() {
+    tanggalController.dispose();
+    asalController.dispose();
+    jenisController.dispose();
+    beratController.dispose();
+    hargaController.dispose();
+    keteranganController.dispose();
+    super.dispose();
   }
 
   Future pickImage() async {
-
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 70,
     );
 
     if (pickedFile != null) {
-
       setState(() {
         imageFile = File(pickedFile.path);
       });
+    }
+  }
+
+  Future<bool> _confirmAnimal(Map<String, String> details) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Konfirmasi data domba'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pastikan data berikut sudah benar sebelum disimpan:',
+                ),
+                const SizedBox(height: 12),
+                for (final entry in details.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('${entry.key}: ${entry.value}'),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Periksa lagi'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Simpan & buat QR'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _generateQr() async {
+    final enteredWeight = double.tryParse(
+      beratController.text.trim().replaceAll(',', '.'),
+    );
+    if (asalController.text.trim().isEmpty ||
+        jenisController.text.trim().isEmpty ||
+        enteredWeight == null ||
+        enteredWeight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Asal, jenis, dan bobot yang valid wajib diisi"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await _confirmAnimal({
+      'Kode': kodeDomba,
+      'Tanggal masuk': tanggalController.text.trim().isEmpty
+          ? '-'
+          : tanggalController.text.trim(),
+      'Asal': asalController.text.trim(),
+      'Jenis': jenisController.text.trim(),
+      'Kelamin': kelamin,
+      'Bobot awal': '$enteredWeight kg',
+      'Harga beli': hargaController.text.trim().isEmpty
+          ? '-'
+          : hargaController.text.trim(),
+    });
+    if (!confirmed || !mounted) return;
+
+    setState(() => saving = true);
+    try {
+      final row = await FarmData.addAnimal(
+        date: tanggalController.text,
+        origin: asalController.text,
+        kind: jenisController.text,
+        sex: kelamin,
+        initialWeight: enteredWeight,
+        purchasePrice: hargaController.text,
+        note: keteranganController.text,
+        photoPath: imageFile?.path ?? '',
+      );
+      if (!mounted) return;
+      final code = row['kode'] as String;
+      final qr = row['qrCode'] as String;
+      setState(() {
+        qrData = qr;
+        kodeDomba = code;
+      });
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DombaQrPage(data: row)),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("QR Domba Berhasil Dibuat"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Domba gagal disimpan: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
   }
 
@@ -70,15 +183,9 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         Row(
           children: [
-
-            Icon(
-              icon,
-              color: const Color(0xff0E9F4B),
-              size: 20,
-            ),
+            Icon(icon, color: const Color(0xff0E9F4B), size: 20),
 
             const SizedBox(width: 8),
 
@@ -97,11 +204,15 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
         TextField(
           controller: controller,
           readOnly: label == "Tanggal Masuk",
+          keyboardType: label == 'Harga Beli'
+              ? TextInputType.number
+              : TextInputType.text,
+          inputFormatters: label == 'Harga Beli'
+              ? const [ThousandsSeparatorInputFormatter()]
+              : null,
 
           onTap: () async {
-
             if (label == "Tanggal Masuk") {
-
               DateTime? pickedDate = await showDatePicker(
                 context: context,
                 initialDate: DateTime.now(),
@@ -110,7 +221,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
               );
 
               if (pickedDate != null) {
-
                 controller.text =
                     "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
               }
@@ -120,9 +230,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
           decoration: InputDecoration(
             hintText: hint,
 
-            hintStyle: GoogleFonts.poppins(
-              color: Colors.grey,
-            ),
+            hintStyle: GoogleFonts.poppins(color: Colors.grey),
 
             filled: true,
             fillColor: Colors.white,
@@ -146,7 +254,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xffF4F6F5),
 
@@ -159,10 +266,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
             Navigator.pop(context);
           },
 
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
         ),
 
         title: Text(
@@ -179,7 +283,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-
             Container(
               height: 220,
               width: double.infinity,
@@ -207,7 +310,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
                 child: Column(
                   children: [
-
                     /// KODE
                     Container(
                       width: double.infinity,
@@ -221,12 +323,9 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
                           Text(
                             "Kode Domba",
-                            style: GoogleFonts.poppins(
-                              color: Colors.white70,
-                            ),
+                            style: GoogleFonts.poppins(color: Colors.white70),
                           ),
 
                           const SizedBox(height: 8),
@@ -264,6 +363,52 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       hint: "Pilih jenis domba",
                       controller: jenisController,
                       icon: Icons.sell,
+                    ),
+
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.pets,
+                              color: Color(0xff0E9F4B),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Kelamin',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(
+                                value: 'Jantan',
+                                label: Text('Jantan'),
+                                icon: Icon(Icons.male),
+                              ),
+                              ButtonSegment(
+                                value: 'Betina',
+                                label: Text('Betina'),
+                                icon: Icon(Icons.female),
+                              ),
+                            ],
+                            selected: {kelamin},
+                            onSelectionChanged: (value) => setState(
+                              () => kelamin = value.first,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                      ],
                     ),
 
                     buildInput(
@@ -306,7 +451,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
                         child: Column(
                           children: [
-
                             if (imageFile != null)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
@@ -320,13 +464,12 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                             else
                               Column(
                                 children: [
-
                                   CircleAvatar(
                                     radius: 35,
 
-                                    backgroundColor:
-                                        const Color(0xff0E9F4B)
-                                            .withOpacity(0.1),
+                                    backgroundColor: const Color(
+                                      0xff0E9F4B,
+                                    ).withOpacity(0.1),
 
                                     child: const Icon(
                                       Icons.camera_alt,
@@ -370,63 +513,21 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       height: 60,
 
                       child: ElevatedButton.icon(
+                        onPressed: saving ? null : _generateQr,
 
-                        onPressed: () async {
-
-                          if (asalController.text.isEmpty ||
-                              jenisController.text.isEmpty) {
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Data wajib diisi"),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-
-                            return;
-                          }
-
-                          qrData = kodeDomba;
-
-                          await dombaBox.add({
-
-                                "kode": kodeDomba,
-                                "tanggal": tanggalController.text,
-                                "asal": asalController.text,
-                                "jenis": jenisController.text,
-                                "berat": beratController.text,
-                                "harga": hargaController.text,
-                                "keterangan": keteranganController.text,
-                                "foto": imageFile?.path ?? "",
-
-                                "status": "aktif",
-
-                                "namaPembeli": "",
-                                "waPembeli": "",
-                                "asalPembeli": "",
-                                "hargaJual": "",
-                                "maps": "",
-                                "kondisi": "",
-                                "fotoJual": "",
-
-                          });
-
-                          setState(() {});
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "QR Domba Berhasil Dibuat",
-                              ),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        },
-
-                        icon: const Icon(Icons.qr_code),
+                        icon: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.qr_code),
 
                         label: Text(
-                          "Generate QR",
+                          saving ? "Menyimpan..." : "Generate QR",
 
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
@@ -465,7 +566,6 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
                         child: Column(
                           children: [
-
                             Text(
                               "QR Domba",
                               style: GoogleFonts.poppins(

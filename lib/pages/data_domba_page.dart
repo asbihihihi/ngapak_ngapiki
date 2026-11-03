@@ -4,72 +4,58 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'edit_domba_page.dart';
+import 'detail_domba_page.dart';
+import '../farm_data.dart';
 
 class DataDombaPage extends StatefulWidget {
   const DataDombaPage({super.key});
 
   @override
-  State<DataDombaPage> createState() =>
-      _DataDombaPageState();
+  State<DataDombaPage> createState() => _DataDombaPageState();
 }
 
-class _DataDombaPageState
-    extends State<DataDombaPage> {
-
+class _DataDombaPageState extends State<DataDombaPage> {
   final dombaBox = Hive.box('dombaBox');
 
-  final searchController =
-      TextEditingController();
+  final searchController = TextEditingController();
 
   String searchText = "";
+  String statusFilter = 'Aktif';
 
   Widget statCard(
     String title,
     String value,
     IconData icon,
-    Color color,
-  ) {
-
+    Color color, {
+    required bool selected,
+  }) {
     return Container(
-
       padding: const EdgeInsets.all(18),
 
       decoration: BoxDecoration(
         color: Colors.white,
 
-        borderRadius:
-            BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: selected ? color : Colors.transparent,
+          width: 2,
+        ),
 
         boxShadow: [
-
-          BoxShadow(
-            color:
-                Colors.black.withOpacity(0.03),
-
-            blurRadius: 10,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
         ],
       ),
 
       child: Column(
-
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
           CircleAvatar(
-
             radius: 25,
 
-            backgroundColor:
-                color.withOpacity(0.12),
+            backgroundColor: color.withOpacity(0.12),
 
-            child: Icon(
-              icon,
-              color: color,
-            ),
+            child: Icon(icon, color: color),
           ),
 
           const Spacer(),
@@ -77,10 +63,7 @@ class _DataDombaPageState
           Text(
             title,
 
-            style: GoogleFonts.poppins(
-              color: Colors.grey,
-              fontSize: 14,
-            ),
+            style: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
           ),
 
           const SizedBox(height: 8),
@@ -100,129 +83,75 @@ class _DataDombaPageState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
-      backgroundColor:
-          const Color(0xffF4F6F5),
-
-      floatingActionButton:
-          FloatingActionButton(
-
-        backgroundColor:
-            const Color(0xff0E9F4B),
-
-        onPressed: () {
-
-          Navigator.pop(context);
-        },
-
-        child: const Icon(
-          Icons.add,
-          size: 30,
-        ),
-      ),
+      backgroundColor: const Color(0xffF4F6F5),
 
       body: ValueListenableBuilder(
-
-        valueListenable:
-            dombaBox.listenable(),
+        valueListenable: dombaBox.listenable(),
 
         builder: (context, Box box, _) {
+          final searchedDomba = box.values.where((item) {
+            final jenis = (item["jenis"] ?? '').toString().toLowerCase();
+            final asal = (item["asal"] ?? '').toString().toLowerCase();
+            final kode = (item["kode"] ?? '').toString().toLowerCase();
+            final qr = (item["qrCode"] ?? '').toString().toLowerCase();
+            final bobot =
+                '${item['bobotAwal'] ?? ''} ${item['bobotTerakhir'] ?? item['berat'] ?? ''}'
+                    .toLowerCase();
 
-          final dataDomba =
-              box.values.where((item) {
-
-            final jenis = item["jenis"]
-                .toString()
-                .toLowerCase();
-
-            final asal = item["asal"]
-                .toString()
-                .toLowerCase();
-
-            final kode = item["kode"]
-                .toString()
-                .toLowerCase();
-
-            return jenis.contains(
-                        searchText) ||
-                    asal.contains(
-                        searchText) ||
-                    kode.contains(
-                        searchText);
-
+            return jenis.contains(searchText) ||
+                asal.contains(searchText) ||
+                kode.contains(searchText) ||
+                qr.contains(searchText) ||
+                bobot.contains(searchText);
           }).toList();
 
-          int totalAktif =
-              dataDomba.where((item) {
-
-            return item["status"] !=
-                "terjual";
-
-          }).length;
-
-          int totalTerjual =
-              dataDomba.where((item) {
-
-            return item["status"] ==
-                "terjual";
-
-          }).length;
+          final totalAktif = searchedDomba
+              .where((item) => !FarmData.isSold(item))
+              .length;
+          final totalTerjual = searchedDomba.where(FarmData.isSold).length;
+          final dataDomba = searchedDomba
+              .where(
+                (item) => statusFilter == 'Terjual'
+                    ? FarmData.isSold(item)
+                    : !FarmData.isSold(item),
+              )
+              .toList();
 
           return SingleChildScrollView(
-
             child: Column(
               children: [
-
                 /// HEADER
                 Container(
-
-                  padding:
-                      const EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     top: 60,
                     left: 20,
                     right: 20,
                     bottom: 30,
                   ),
 
-                  decoration:
-                      const BoxDecoration(
-
-                    gradient:
-                        LinearGradient(
-                      colors: [
-                        Color(0xff0E9F4B),
-                        Color(0xff087F3A),
-                      ],
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xff0E9F4B), Color(0xff087F3A)],
                     ),
 
-                    borderRadius:
-                        BorderRadius.only(
-                      bottomLeft:
-                          Radius.circular(35),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(35),
 
-                      bottomRight:
-                          Radius.circular(35),
+                      bottomRight: Radius.circular(35),
                     ),
                   ),
 
                   child: Column(
-
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-
                       Text(
                         "Data Domba",
 
-                        style:
-                            GoogleFonts.poppins(
+                        style: GoogleFonts.poppins(
                           color: Colors.white,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
 
                           fontSize: 34,
                         ),
@@ -233,68 +162,38 @@ class _DataDombaPageState
                       Text(
                         "Kelola dan pantau data domba Anda",
 
-                        style:
-                            GoogleFonts.poppins(
-                          color: Colors.white70,
-                        ),
+                        style: GoogleFonts.poppins(color: Colors.white70),
                       ),
 
                       const SizedBox(height: 25),
 
                       /// SEARCH
                       Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
 
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 18,
-                        ),
-
-                        decoration:
-                            BoxDecoration(
+                        decoration: BoxDecoration(
                           color: Colors.white,
 
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                                      18),
+                          borderRadius: BorderRadius.circular(18),
                         ),
 
                         child: TextField(
-
-                          controller:
-                              searchController,
+                          controller: searchController,
 
                           onChanged: (value) {
-
                             setState(() {
-
-                              searchText =
-                                  value
-                                      .toLowerCase();
+                              searchText = value.toLowerCase();
                             });
                           },
 
-                          decoration:
-                              InputDecoration(
-                            border:
-                                InputBorder
-                                    .none,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
 
-                            icon:
-                                const Icon(
-                              Icons.search,
-                            ),
+                            icon: const Icon(Icons.search),
 
-                            hintText:
-                                "Cari domba...",
+                            hintText: "Cari domba...",
 
-                            hintStyle:
-                                GoogleFonts
-                                    .poppins(
-                              color:
-                                  Colors.grey,
-                            ),
+                            hintStyle: GoogleFonts.poppins(color: Colors.grey),
                           ),
                         ),
                       ),
@@ -303,28 +202,27 @@ class _DataDombaPageState
                 ),
 
                 Padding(
-
-                  padding:
-                      const EdgeInsets.all(
-                          20),
+                  padding: const EdgeInsets.all(20),
 
                   child: Column(
-
                     children: [
-
                       /// STAT
                       Row(
                         children: [
-
                           Expanded(
-                            child: SizedBox(
-                              height: 150,
-
-                              child: statCard(
-                                "Aktif",
-                                "$totalAktif",
-                                Icons.pets,
-                                Colors.green,
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                statusFilter = 'Aktif';
+                              }),
+                              child: SizedBox(
+                                height: 150,
+                                child: statCard(
+                                  "Aktif",
+                                  "$totalAktif",
+                                  Icons.pets,
+                                  Colors.green,
+                                  selected: statusFilter == 'Aktif',
+                                ),
                               ),
                             ),
                           ),
@@ -332,14 +230,19 @@ class _DataDombaPageState
                           const SizedBox(width: 15),
 
                           Expanded(
-                            child: SizedBox(
-                              height: 150,
-
-                              child: statCard(
-                                "Terjual",
-                                "$totalTerjual",
-                                Icons.sell,
-                                Colors.red,
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                statusFilter = 'Terjual';
+                              }),
+                              child: SizedBox(
+                                height: 150,
+                                child: statCard(
+                                  "Terjual",
+                                  "$totalTerjual",
+                                  Icons.sell,
+                                  Colors.red,
+                                  selected: statusFilter == 'Terjual',
+                                ),
                               ),
                             ),
                           ),
@@ -349,22 +252,14 @@ class _DataDombaPageState
                       const SizedBox(height: 30),
 
                       Row(
-
-                        mainAxisAlignment:
-                            MainAxisAlignment
-                                .spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
                         children: [
-
                           Text(
                             "Daftar Domba",
 
-                            style:
-                                GoogleFonts
-                                    .poppins(
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
 
                               fontSize: 24,
                             ),
@@ -373,12 +268,7 @@ class _DataDombaPageState
                           Text(
                             "${dataDomba.length} Data",
 
-                            style:
-                                GoogleFonts
-                                    .poppins(
-                              color:
-                                  Colors.grey,
-                            ),
+                            style: GoogleFonts.poppins(color: Colors.grey),
                           ),
                         ],
                       ),
@@ -386,191 +276,113 @@ class _DataDombaPageState
                       const SizedBox(height: 20),
 
                       /// LIST
-                      ListView.builder(
+                      if (dataDomba.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Text(
+                            'Belum ada domba ${statusFilter.toLowerCase()}'
+                            '${searchText.isEmpty ? '.' : ' yang cocok dengan pencarian.'}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: dataDomba.length,
+                          itemBuilder: (context, index) {
+                          final item = dataDomba[index];
 
-                        shrinkWrap: true,
-
-                        physics:
-                            const NeverScrollableScrollPhysics(),
-
-                        itemCount:
-                            dataDomba.length,
-
-                        itemBuilder:
-                            (context, index) {
-
-                          final item =
-                              dataDomba[index];
-
-                          final status =
-                              item["status"] ??
-                                  "aktif";
-
-                          final isTerjual =
-                              status ==
-                                  "terjual";
+                          final isTerjual = FarmData.isSold(item);
 
                           return GestureDetector(
-
                             onTap: () {
-
                               Navigator.push(
-
                                 context,
 
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          EditDombaPage(
+                                  builder: (context) => DetailDombaPage(
+                                    data: Map<String, dynamic>.from(item),
 
-                                    data: Map<
-                                            String,
-                                            dynamic>
-                                        .from(
-                                            item),
-
-                                    index:
-                                        index,
+                                    index: box.values.toList().indexOf(item),
                                   ),
                                 ),
                               );
                             },
 
                             child: Container(
+                              margin: const EdgeInsets.only(bottom: 18),
 
-                              margin:
-                                  const EdgeInsets
-                                      .only(
-                                bottom: 18,
-                              ),
+                              padding: const EdgeInsets.all(16),
 
-                              padding:
-                                  const EdgeInsets
-                                      .all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
 
-                              decoration:
-                                  BoxDecoration(
-
-                                color:
-                                    Colors.white,
-
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                            28),
+                                borderRadius: BorderRadius.circular(28),
 
                                 boxShadow: [
-
                                   BoxShadow(
-                                    color: Colors
-                                        .black
-                                        .withOpacity(
-                                            0.03),
+                                    color: Colors.black.withOpacity(0.03),
 
-                                    blurRadius:
-                                        10,
+                                    blurRadius: 10,
                                   ),
                                 ],
                               ),
 
                               child: Row(
                                 children: [
-
                                   /// FOTO
                                   ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
 
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
-                                                20),
-
-                                    child:
-                                        item["foto"] !=
-                                                    null &&
-                                                item["foto"]
-                                                    .toString()
-                                                    .isNotEmpty
-
-                                            ? Image.file(
-                                                File(
-                                                    item["foto"]),
-
-                                                width:
-                                                    95,
-
-                                                height:
-                                                    95,
-
-                                                fit: BoxFit
-                                                    .cover,
-                                              )
-
-                                            : Image.network(
-
-                                                "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=1200&auto=format&fit=crop",
-
-                                                width:
-                                                    95,
-
-                                                height:
-                                                    95,
-
-                                                fit: BoxFit
-                                                    .cover,
-                                              ),
+                                    child: item["foto"] != null &&
+                                            item["foto"].toString().isNotEmpty
+                                        ? Image.file(
+                                            File(item["foto"]),
+                                            width: 95,
+                                            height: 95,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) =>
+                                                _photoPlaceholder(),
+                                          )
+                                        : _photoPlaceholder(),
                                   ),
 
-                                  const SizedBox(
-                                      width:
-                                          16),
+                                  const SizedBox(width: 16),
 
                                   Expanded(
-
                                     child: Column(
-
                                       crossAxisAlignment:
-                                          CrossAxisAlignment
-                                              .start,
+                                          CrossAxisAlignment.start,
 
                                       children: [
-
                                         Row(
                                           children: [
-
                                             Expanded(
-
-                                              child:
-                                                  Column(
-
+                                              child: Column(
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
 
                                                 children: [
-
                                                   Text(
-                                                    item["kode"] ??
-                                                        "-",
+                                                    item["kode"] ?? "-",
 
-                                                    style:
-                                                        GoogleFonts.poppins(
-
+                                                    style: GoogleFonts.poppins(
                                                       fontWeight:
                                                           FontWeight.bold,
 
-                                                      fontSize:
-                                                          22,
+                                                      fontSize: 22,
 
-                                                      color:
-                                                          const Color(0xff0E9F4B),
+                                                      color: const Color(
+                                                        0xff0E9F4B,
+                                                      ),
                                                     ),
                                                   ),
 
                                                   Text(
-                                                    item["jenis"] ??
-                                                        "-",
+                                                    item["jenis"] ?? "-",
 
-                                                    style:
-                                                        GoogleFonts.poppins(
+                                                    style: GoogleFonts.poppins(
                                                       fontWeight:
                                                           FontWeight.w600,
                                                     ),
@@ -580,116 +392,80 @@ class _DataDombaPageState
                                             ),
 
                                             Container(
-
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                horizontal:
-                                                    12,
+                                                    horizontal: 12,
 
-                                                vertical:
-                                                    5,
-                                              ),
+                                                    vertical: 5,
+                                                  ),
 
-                                              decoration:
-                                                  BoxDecoration(
-
+                                              decoration: BoxDecoration(
                                                 color: isTerjual
-
-                                                    ? Colors.red
-                                                        .withOpacity(
-                                                            0.12)
-
-                                                    : Colors.green
-                                                        .withOpacity(
-                                                            0.12),
+                                                    ? Colors.red.withOpacity(
+                                                        0.12,
+                                                      )
+                                                    : Colors.green.withOpacity(
+                                                        0.12,
+                                                      ),
 
                                                 borderRadius:
-                                                    BorderRadius.circular(
-                                                        20),
+                                                    BorderRadius.circular(20),
                                               ),
 
-                                              child:
-                                                  Text(
+                                              child: Text(
+                                                isTerjual ? "Terjual" : "Aktif",
 
-                                                isTerjual
-                                                    ? "Terjual"
-                                                    : "Aktif",
-
-                                                style:
-                                                    GoogleFonts.poppins(
-
+                                                style: GoogleFonts.poppins(
                                                   color: isTerjual
                                                       ? Colors.red
                                                       : Colors.green,
 
-                                                  fontWeight:
-                                                      FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ),
                                           ],
                                         ),
 
-                                        const SizedBox(
-                                            height:
-                                                10),
+                                        const SizedBox(height: 10),
 
                                         Text(
                                           "Asal : ${item["asal"]}",
 
-                                          style:
-                                              GoogleFonts.poppins(
-                                            color:
-                                                Colors.grey[700],
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.grey[700],
                                           ),
                                         ),
 
-                                        const SizedBox(
-                                            height:
-                                                5),
+                                        const SizedBox(height: 5),
 
                                         Text(
                                           "Berat : ${item["berat"]} Kg",
 
-                                          style:
-                                              GoogleFonts.poppins(
-                                            color:
-                                                Colors.grey[700],
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.grey[700],
                                           ),
                                         ),
 
-                                        const SizedBox(
-                                            height:
-                                                10),
+                                        const SizedBox(height: 10),
 
                                         Row(
                                           children: [
-
                                             Icon(
-                                              Icons
-                                                  .calendar_month,
+                                              Icons.calendar_month,
 
-                                              size:
-                                                  18,
+                                              size: 18,
 
-                                              color:
-                                                  Colors.grey[
-                                                      600],
+                                              color: Colors.grey[600],
                                             ),
 
-                                            const SizedBox(
-                                                width:
-                                                    6),
+                                            const SizedBox(width: 6),
 
                                             Text(
-                                              item["tanggal"] ??
-                                                  "-",
+                                              item["tanggal"] ?? "-",
 
-                                              style:
-                                                  GoogleFonts.poppins(
-                                                color:
-                                                    Colors.grey[
-                                                        600],
+                                              style: GoogleFonts.poppins(
+                                                color: Colors.grey[600],
                                               ),
                                             ),
                                           ],
@@ -697,87 +473,12 @@ class _DataDombaPageState
                                       ],
                                     ),
                                   ),
-
-                                  /// DELETE
-                                  IconButton(
-
-                                    onPressed:
-                                        () {
-
-                                      showDialog(
-
-                                        context:
-                                            context,
-
-                                        builder:
-                                            (context) {
-
-                                          return AlertDialog(
-
-                                            title:
-                                                const Text(
-                                              "Hapus Data?",
-                                            ),
-
-                                            content:
-                                                const Text(
-                                              "Data domba akan dihapus permanen.",
-                                            ),
-
-                                            actions: [
-
-                                              TextButton(
-
-                                                onPressed:
-                                                    () {
-
-                                                  Navigator.pop(
-                                                      context);
-                                                },
-
-                                                child:
-                                                    const Text(
-                                                  "Batal",
-                                                ),
-                                              ),
-
-                                              TextButton(
-
-                                                onPressed:
-                                                    () {
-
-                                                  dombaBox
-                                                      .deleteAt(
-                                                          index);
-
-                                                  Navigator.pop(
-                                                      context);
-                                                },
-
-                                                child:
-                                                    const Text(
-                                                  "Hapus",
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-
-                                    icon:
-                                        const Icon(
-                                      Icons.delete,
-                                      color:
-                                          Colors.red,
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
                           );
-                        },
-                      ),
+                          },
+                        ),
 
                       const SizedBox(height: 120),
                     ],
@@ -790,4 +491,11 @@ class _DataDombaPageState
       ),
     );
   }
+
+  Widget _photoPlaceholder() => Container(
+    width: 95,
+    height: 95,
+    color: const Color(0xffE8F5E9),
+    child: const Icon(Icons.pets, size: 42, color: Color(0xff2D6A4F)),
+  );
 }
