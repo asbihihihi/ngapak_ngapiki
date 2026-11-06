@@ -3,6 +3,20 @@ import 'dart:async';
 import 'package:hive/hive.dart';
 import 'money_format.dart';
 
+class AnimalWeightEntry {
+  const AnimalWeightEntry({
+    required this.index,
+    required this.value,
+    required this.note,
+    this.date,
+  });
+
+  final int index;
+  final double value;
+  final String note;
+  final String? date;
+}
+
 class FarmData {
   static Future<void> _saleQueue = Future<void>.value();
   static Future<void> _animalQueue = Future<void>.value();
@@ -109,18 +123,21 @@ class FarmData {
     }
     final history =
         aktivitas.values
-            .where(
-              (entry) {
-                if (entry['dombaId'] != id && entry['kode'] != code) {
-                  return false;
-                }
-                final type = '${entry['tipe'] ?? ''}'.toLowerCase();
-                return type.contains('kesehatan') ||
-                    type == 'nutrisi' ||
-                    entry['barangId'] != null ||
-                    entry['kategori'] == 'Obat-obatan';
-              },
-            )
+            .where((entry) {
+              final recordId = '${entry['dombaId'] ?? ''}';
+              final matchesAnimal = id.isNotEmpty
+                  ? recordId == id ||
+                        (recordId.isEmpty &&
+                            code.isNotEmpty &&
+                            '${entry['kode'] ?? ''}' == code)
+                  : code.isNotEmpty && '${entry['kode'] ?? ''}' == code;
+              if (!matchesAnimal) return false;
+              final type = '${entry['tipe'] ?? ''}'.toLowerCase();
+              final category = '${entry['kategori'] ?? ''}'.toLowerCase();
+              return type.contains('kesehatan') ||
+                  type.contains('pemberian obat') ||
+                  category == 'obat-obatan';
+            })
             .map((entry) => Map<String, dynamic>.from(entry))
             .toList()
           ..sort((a, b) => '${a['tanggal']}'.compareTo('${b['tanggal']}'));
@@ -278,6 +295,7 @@ class FarmData {
             'dombaId': row['id'],
             'kode': code,
             'tanggal': date,
+            'waktuPencatatan': now.toIso8601String(),
             'bobot': animalDetails[i]['bobot'],
             'catatan': 'Bobot awal',
           }),
@@ -432,6 +450,7 @@ class FarmData {
         'dombaId': row['id'],
         'kode': code,
         'tanggal': intakeDate,
+        'waktuPencatatan': now.toIso8601String(),
         'bobot': initialWeight,
         'catatan': 'Bobot awal',
       });
@@ -468,12 +487,99 @@ class FarmData {
       ) ??
       0;
 
+  static List<Map<String, dynamic>> weightHistoryFor(dynamic animal) {
+    final animalId = '${animal['id'] ?? ''}';
+    final code = '${animal['kode'] ?? ''}';
+    final history = bobot.values
+        .where((entry) {
+          if (entry is! Map) return false;
+          final entryAnimalId = '${entry['dombaId'] ?? ''}';
+          if (animalId.isNotEmpty && entryAnimalId.isNotEmpty) {
+            return entryAnimalId == animalId;
+          }
+          return code.isNotEmpty && '${entry['kode'] ?? ''}' == code;
+        })
+        .map((entry) => Map<String, dynamic>.from(entry as Map))
+        .toList();
+    history.sort((a, b) {
+      final dateA = DateTime.tryParse('${a['tanggal'] ?? ''}');
+      final dateB = DateTime.tryParse('${b['tanggal'] ?? ''}');
+      if (dateA == null) return dateB == null ? 0 : 1;
+      if (dateB == null) return -1;
+      final byDate = dateA.compareTo(dateB);
+      if (byDate != 0) return byDate;
+      return '${a['waktuPencatatan'] ?? ''}'.compareTo(
+        '${b['waktuPencatatan'] ?? ''}',
+      );
+    });
+    return history;
+  }
+
+  static Map<String, double?> weightMetricsFor(dynamic animal) {
+    final parsed = weightTrendFor(animal);
+    if (parsed.isEmpty) {
+      return {
+        'initial': null,
+        'latest': null,
+        'gain': null,
+        'adg': null,
+        'previousGain': null,
+      };
+    }
+    final latest = parsed.last;
+    final initial = parsed.first;
+    final previous = parsed.length > 1 ? parsed[parsed.length - 2] : null;
+    final days = latest.date.difference(initial.date).inDays;
+    return {
+      'initial': initial.value,
+      'latest': latest.value,
+      'gain': latest.value - initial.value,
+      'adg': days > 0 ? (latest.value - initial.value) / days : null,
+      'previousGain': previous == null ? null : latest.value - previous.value,
+    };
+  }
+
+  static List<({DateTime date, double value})> weightTrendFor(dynamic animal) {
+    final today = DateTime.now();
+    final todayDay = DateTime(today.year, today.month, today.day);
+    return weightHistoryFor(animal)
+        .map((entry) {
+          final date = _calendarDate(entry['tanggal']);
+          final value = double.tryParse('${entry['bobot'] ?? ''}');
+          if (date == null ||
+              date.isAfter(todayDay) ||
+              value == null ||
+              !value.isFinite ||
+              value <= 0) {
+            return null;
+          }
+          return (date: date, value: value);
+        })
+        .whereType<({DateTime date, double value})>()
+        .toList();
+  }
+
   static int? indexForQr(String qr) {
     for (var i = 0; i < domba.length; i++) {
       final row = domba.getAt(i);
       if (row['qrCode'] == qr || row['kode'] == qr) return i;
     }
     return null;
+  }
+
+  static DateTime? _calendarDate(dynamic raw) {
+    final text = '$raw'.trim();
+    if (text.length < 10) return null;
+    final dayText = text.substring(0, 10);
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(dayText)) return null;
+    final parsed = DateTime.tryParse(dayText);
+    if (parsed == null ||
+        parsed.year.toString().padLeft(4, '0') != dayText.substring(0, 4) ||
+        parsed.month.toString().padLeft(2, '0') != dayText.substring(5, 7) ||
+        parsed.day.toString().padLeft(2, '0') != dayText.substring(8, 10)) {
+      return null;
+    }
+    return DateTime(parsed.year, parsed.month, parsed.day);
   }
 
   static Future<T> _withSaleLock<T>(Future<T> Function() operation) {
@@ -505,35 +611,136 @@ class FarmData {
     double value,
     String note, {
     String? date,
-  }) async {
-    if (index < 0 || index >= domba.length || !value.isFinite || value <= 0) {
-      throw ArgumentError('Bobot harus berupa angka lebih dari nol.');
+  }) => recordWeights([
+    AnimalWeightEntry(index: index, value: value, note: note, date: date),
+  ]);
+
+  static Future<void> recordWeights(
+    List<AnimalWeightEntry> entries,
+  ) => _withAnimalLock(() async {
+    if (entries.isEmpty ||
+        entries.map((entry) => entry.index).toSet().length != entries.length) {
+      throw ArgumentError('Pilih kambing yang valid untuk ditimbang.');
     }
-    final row = Map<String, dynamic>.from(domba.getAt(index));
-    if (isSold(row))
-      throw StateError('Bobot kambing terjual tidak dapat diubah.');
+
     final now = DateTime.now();
-    final historyKey = await bobot.add({
-      'id': DateTime.now().microsecondsSinceEpoch.toString(),
-      'dombaId': row['id'],
-      'kode': row['kode'],
-      'tanggal': date ?? now.toIso8601String(),
-      'bobot': value,
-      'catatan': note,
-    });
-    row['bobotTerakhir'] = value;
-    if (row['batchId'] != null &&
-        (double.tryParse('${row['bobotAwal'] ?? 0}') ?? 0) == 0) {
-      row['bobotAwal'] = value;
+    final today = DateTime(now.year, now.month, now.day);
+    final prepared =
+        <
+          ({
+            int index,
+            Map<String, dynamic> before,
+            Map<String, dynamic> after,
+            DateTime date,
+            double value,
+            String note,
+          })
+        >[];
+    for (final entry in entries) {
+      if (entry.index < 0 ||
+          entry.index >= domba.length ||
+          !entry.value.isFinite ||
+          entry.value <= 0) {
+        throw ArgumentError('Bobot harus berupa angka lebih dari nol.');
+      }
+      final eventDate = _calendarDate(entry.date ?? now.toIso8601String());
+      if (eventDate == null) {
+        throw ArgumentError('Tanggal penimbangan tidak valid.');
+      }
+      if (eventDate.isAfter(today)) {
+        throw ArgumentError(
+          'Tanggal penimbangan tidak boleh di masa mendatang.',
+        );
+      }
+      final before = Map<String, dynamic>.from(domba.getAt(entry.index));
+      if (isSold(before)) {
+        throw StateError('Bobot kambing terjual tidak dapat diubah.');
+      }
+      if ('${before['id'] ?? ''}'.trim().isEmpty) {
+        throw StateError('ID kambing tidak tersedia untuk mengaitkan riwayat.');
+      }
+      final after = Map<String, dynamic>.from(before);
+      final previousLatest = weightHistoryFor(before)
+          .map((record) => _calendarDate(record['tanggal']))
+          .whereType<DateTime>()
+          .where((day) => !day.isAfter(today))
+          .fold<DateTime?>(null, (latest, day) {
+            return latest == null || day.isAfter(latest) ? day : latest;
+          });
+      if (previousLatest == null || !eventDate.isBefore(previousLatest)) {
+        after['bobotTerakhir'] = entry.value;
+        after['berat'] = entry.value.toString();
+      }
+      if (after['batchId'] != null &&
+          (double.tryParse('${after['bobotAwal'] ?? 0}') ?? 0) == 0) {
+        after['bobotAwal'] = entry.value;
+      }
+      prepared.add((
+        index: entry.index,
+        before: before,
+        after: after,
+        date: eventDate,
+        value: entry.value,
+        note: entry.note.trim(),
+      ));
     }
-    row['berat'] = value.toString();
+
+    final weightKeys = <dynamic>[];
+    final changedRows = <int>[];
+    final recordIds = <String>{};
     try {
-      await domba.putAt(index, row);
-    } catch (_) {
-      await bobot.delete(historyKey);
-      rethrow;
+      for (var index = 0; index < prepared.length; index++) {
+        final item = prepared[index];
+        final capturedAt = DateTime.now();
+        var recordId = capturedAt.microsecondsSinceEpoch.toString();
+        var suffix = 1;
+        while (bobot.values.any((record) => record['id'] == recordId) ||
+            recordIds.contains(recordId)) {
+          recordId = '${capturedAt.microsecondsSinceEpoch}-${suffix++}';
+        }
+        recordIds.add(recordId);
+        weightKeys.add(
+          await bobot.add({
+            'id': recordId,
+            'dombaId': item.before['id'],
+            'kode': item.before['kode'],
+            'tanggal': item.date.toIso8601String().substring(0, 10),
+            'waktuPencatatan': capturedAt.toIso8601String(),
+            'bobot': item.value,
+            'catatan': item.note,
+          }),
+        );
+      }
+      for (final item in prepared) {
+        changedRows.add(item.index);
+        await domba.putAt(item.index, item.after);
+      }
+    } catch (error, stackTrace) {
+      final rollbackErrors = <Object>[];
+      for (final index in changedRows.reversed) {
+        try {
+          final item = prepared.firstWhere((entry) => entry.index == index);
+          await domba.putAt(index, item.before);
+        } catch (rollbackError) {
+          rollbackErrors.add(rollbackError);
+        }
+      }
+      for (final key in weightKeys) {
+        try {
+          await bobot.delete(key);
+        } catch (rollbackError) {
+          rollbackErrors.add(rollbackError);
+        }
+      }
+      if (rollbackErrors.isNotEmpty) {
+        throw StateError(
+          'Penyimpanan bobot gagal ($error) dan pemulihan data tidak '
+          'selesai: ${rollbackErrors.join('; ')}',
+        );
+      }
+      Error.throwWithStackTrace(error, stackTrace);
     }
-  }
+  });
 
   static Future<void> recordActivity(
     int index, {
@@ -550,6 +757,7 @@ class FarmData {
       'kode': row['kode'],
       'tipe': tipe,
       'tanggal': DateTime.now().toIso8601String(),
+      'waktuPencatatan': DateTime.now().toIso8601String(),
       'nama': nama,
       'jumlah': jumlah,
       'satuan': satuan,
@@ -563,18 +771,21 @@ class FarmData {
     required String note,
   }) async {
     final normalized = status.trim();
-    if (normalized.isEmpty)
+    if (normalized.isEmpty) {
       throw ArgumentError('Status kesehatan wajib dipilih.');
+    }
     final row = Map<String, dynamic>.from(domba.getAt(index));
-    if (isSold(row))
+    if (isSold(row)) {
       throw StateError('Data kesehatan kambing terjual tidak dapat diubah.');
+    }
     final eventId = 'HEALTH-${DateTime.now().microsecondsSinceEpoch}';
     final eventKey = await aktivitas.add({
       'id': eventId,
       'dombaId': row['id'],
       'kode': row['kode'],
       'tipe': 'Pemeriksaan Kesehatan',
-      'tanggal': DateTime.now().toIso8601String(),
+      'tanggal': DateTime.now().toIso8601String().substring(0, 10),
+      'waktuPencatatan': DateTime.now().toIso8601String(),
       'nama': normalized,
       'jumlah': '',
       'satuan': '',
@@ -583,6 +794,10 @@ class FarmData {
     try {
       row['statusKesehatan'] = normalized;
       row['catatanKesehatan'] = note.trim();
+      row['tanggalPemeriksaan'] = DateTime.now().toIso8601String().substring(
+        0,
+        10,
+      );
       await domba.putAt(index, row);
     } catch (_) {
       await aktivitas.delete(eventKey);
@@ -622,11 +837,13 @@ class FarmData {
     if (isSold(row)) throw StateError('Kambing terjual tidak dapat diedit.');
     dynamic historyKey;
     if (weightValue != weight(row)) {
+      final recordedAt = DateTime.now();
       historyKey = await bobot.add({
-        'id': 'edit-${DateTime.now().microsecondsSinceEpoch}',
+        'id': 'edit-${recordedAt.microsecondsSinceEpoch}',
         'dombaId': row['id'],
         'kode': row['kode'],
-        'tanggal': DateTime.now().toIso8601String(),
+        'tanggal': recordedAt.toIso8601String(),
+        'waktuPencatatan': recordedAt.toIso8601String(),
         'bobot': weightValue,
         'catatan': 'Bobot diperbarui dari edit data',
       });
@@ -708,8 +925,9 @@ class FarmData {
         throw ArgumentError('Data kambing tidak ditemukan.');
       }
       final row = Map<String, dynamic>.from(domba.getAt(index));
-      if (isSold(row))
+      if (isSold(row)) {
         throw StateError('Kambing ${row['kode']} sudah terjual.');
+      }
       if ('${row['id'] ?? ''}'.isEmpty || '${row['kode'] ?? ''}'.isEmpty) {
         throw StateError('Identitas kambing tidak valid.');
       }
@@ -739,12 +957,14 @@ class FarmData {
         final itemWeight = weightsByIndex[index]!;
         final itemPrice = pricesByIndex[index]!;
         final healthHistory = healthHistoryFor(row);
+        final recordedAt = DateTime.now();
         weightKeys.add(
           await bobot.add({
             'id': '$transactionId-${row['kode']}-weight',
             'dombaId': row['id'],
             'kode': row['kode'],
             'tanggal': date,
+            'waktuPencatatan': recordedAt.toIso8601String(),
             'bobot': itemWeight,
             'catatan': 'Bobot saat dijual',
           }),

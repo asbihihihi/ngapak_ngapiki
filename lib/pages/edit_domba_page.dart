@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../money_format.dart';
+import '../theme/app_theme.dart';
 
 import 'input_penjualan_page.dart';
 import '../farm_data.dart';
@@ -56,7 +57,9 @@ class _EditDombaPageState extends State<EditDombaPage> {
     beratController = TextEditingController(text: widget.data["berat"] ?? "");
 
     hargaController = TextEditingController(
-      text: formatThousands('${widget.data["hargaBeli"] ?? widget.data["harga"] ?? ""}'),
+      text: formatThousands(
+        '${widget.data["hargaBeli"] ?? widget.data["harga"] ?? ""}',
+      ),
     );
     sex = widget.data['kelamin'] == 'Betina' ? 'Betina' : 'Jantan';
 
@@ -87,7 +90,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-        Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
 
         const SizedBox(height: 10),
 
@@ -103,7 +106,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
               : null,
 
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: const Color(0xff0E9F4B)),
+            prefixIcon: Icon(icon, color: AppTheme.forestGreen),
 
             filled: true,
 
@@ -142,7 +145,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        backgroundColor: Colors.green,
+        backgroundColor: AppTheme.forestGreen,
 
         content: Text("QR berhasil disimpan ke galeri 📸"),
       ),
@@ -167,7 +170,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
 
               children: [
                 pw.Text(
-                  "QR Domba",
+                  "QR Kambing",
 
                   style: pw.TextStyle(
                     fontSize: 24,
@@ -205,7 +208,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('Konfirmasi perubahan'),
           content: Text(
-            'Simpan perubahan data domba $kodeDomba dengan bobot '
+            'Simpan perubahan data kambing $kodeDomba dengan bobot '
             '${weight.toStringAsFixed(1)} kg?',
           ),
           actions: [
@@ -241,7 +244,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
               Text(
                 "Pilih Aksi QR",
 
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                 ),
@@ -253,13 +256,13 @@ class _EditDombaPageState extends State<EditDombaPage> {
                 leading: const CircleAvatar(
                   backgroundColor: Color(0xffE8F5E9),
 
-                  child: Icon(Icons.image, color: Colors.green),
+                  child: Icon(Icons.image, color: AppTheme.forestGreen),
                 ),
 
                 title: Text(
                   "Simpan ke Galeri",
 
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
 
                 onTap: () async {
@@ -279,7 +282,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                 title: Text(
                   "Print PDF",
 
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                 ),
 
                 onTap: () async {
@@ -300,17 +303,15 @@ class _EditDombaPageState extends State<EditDombaPage> {
     final isSold = FarmData.isSold(widget.data);
 
     return Scaffold(
-      backgroundColor: const Color(0xffF4F6F5),
+      backgroundColor: AppTheme.warmCream,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xff0E9F4B),
-
         elevation: 0,
 
         title: Text(
-          "Edit Domba",
+          "Edit Kambing",
 
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
       ),
 
@@ -344,9 +345,9 @@ class _EditDombaPageState extends State<EditDombaPage> {
                 child: Column(
                   children: [
                     Text(
-                      "QR Domba",
+                      "QR Kambing",
 
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
 
                         fontSize: 22,
@@ -362,8 +363,8 @@ class _EditDombaPageState extends State<EditDombaPage> {
                     Text(
                       kodeDomba,
 
-                      style: GoogleFonts.poppins(
-                        color: const Color(0xff0E9F4B),
+                      style: GoogleFonts.inter(
+                        color: AppTheme.forestGreen,
 
                         fontWeight: FontWeight.bold,
 
@@ -389,11 +390,11 @@ class _EditDombaPageState extends State<EditDombaPage> {
                 label: Text(
                   "Print / Simpan QR",
 
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                 ),
 
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff0E9F4B),
+                  backgroundColor: AppTheme.forestGreen,
 
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -423,8 +424,8 @@ class _EditDombaPageState extends State<EditDombaPage> {
 
                     decoration: BoxDecoration(
                       color: isSold
-                          ? Colors.red.withOpacity(0.1)
-                          : Colors.green.withOpacity(0.1),
+                          ? const Color(0xFFF8E9E6)
+                          : AppTheme.sageGreen,
 
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -434,18 +435,21 @@ class _EditDombaPageState extends State<EditDombaPage> {
                         Icon(
                           isSold ? Icons.sell : Icons.pets,
 
-                          color: isSold ? Colors.red : Colors.green,
+                          color: isSold
+                              ? const Color(0xFFB5473B)
+                              : AppTheme.forestGreen,
                         ),
 
                         const SizedBox(width: 10),
 
                         Text(
-                          isSold ? "Domba Sudah Terjual" : "Domba Aktif",
+                          isSold ? "Kambing sudah terjual" : "Kambing aktif",
 
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
-
-                            color: isSold ? Colors.red : Colors.green,
+                            color: isSold
+                                ? const Color(0xFFB5473B)
+                                : AppTheme.forestGreen,
                           ),
                         ),
                       ],
@@ -482,7 +486,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Kelamin',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -548,9 +552,9 @@ class _EditDombaPageState extends State<EditDombaPage> {
                         icon: const Icon(Icons.sell),
 
                         label: Text(
-                          "Jual Domba",
+                          "Jual Kambing",
 
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
 
                             fontSize: 18,
@@ -558,7 +562,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                         ),
 
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: AppTheme.oliveGreen,
 
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -631,7 +635,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    backgroundColor: Colors.green,
+                                    backgroundColor: AppTheme.forestGreen,
 
                                     content: Text("Data berhasil diupdate ✅"),
                                   ),
@@ -654,7 +658,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                         label: Text(
                           saving ? "Menyimpan..." : "Update Data",
 
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
 
                             fontSize: 18,
@@ -662,7 +666,7 @@ class _EditDombaPageState extends State<EditDombaPage> {
                         ),
 
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff0E9F4B),
+                          backgroundColor: AppTheme.forestGreen,
 
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -678,37 +682,41 @@ class _EditDombaPageState extends State<EditDombaPage> {
                       padding: const EdgeInsets.all(20),
 
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.08),
+                        color: const Color(0xFFF8E9E6),
 
                         borderRadius: BorderRadius.circular(20),
                       ),
 
                       child: Column(
                         children: [
-                          const Icon(Icons.lock, color: Colors.red, size: 45),
+                          const Icon(
+                            Icons.lock,
+                            color: Color(0xFFB5473B),
+                            size: 45,
+                          ),
 
                           const SizedBox(height: 10),
 
                           Text(
                             "Data Sudah Dikunci",
 
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               fontWeight: FontWeight.bold,
 
                               fontSize: 18,
 
-                              color: Colors.red,
+                              color: const Color(0xFFB5473B),
                             ),
                           ),
 
                           const SizedBox(height: 5),
 
                           Text(
-                            "Domba sudah terjual dan tidak bisa diedit lagi 🐏",
+                            "Kambing sudah terjual dan tidak dapat diedit lagi.",
 
                             textAlign: TextAlign.center,
 
-                            style: GoogleFonts.poppins(color: Colors.grey),
+                            style: GoogleFonts.inter(color: AppTheme.mutedText),
                           ),
                         ],
                       ),

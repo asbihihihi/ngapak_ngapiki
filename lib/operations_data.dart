@@ -232,6 +232,7 @@ class FarmOperationsData {
     required double quantity,
     required String date,
     required String note,
+    String staff = '',
   }) => _withStockLock(() async {
     if (animalIndex < 0 || animalIndex >= FarmData.domba.length) {
       throw ArgumentError('Data domba tidak ditemukan.');
@@ -242,9 +243,7 @@ class FarmOperationsData {
     if (!quantity.isFinite || quantity <= 0 || date.trim().isEmpty) {
       throw ArgumentError('Jumlah barang dan tanggal harus valid.');
     }
-    final animal = Map<String, dynamic>.from(
-      FarmData.domba.getAt(animalIndex),
-    );
+    final animal = Map<String, dynamic>.from(FarmData.domba.getAt(animalIndex));
     if (FarmData.isSold(animal)) {
       throw StateError('Aktivitas kambing terjual tidak dapat diubah.');
     }
@@ -261,7 +260,7 @@ class FarmOperationsData {
     final activityId = '$operationId-${animal['kode']}';
     final category = '${item['kategori'] ?? ''}';
     final type = category == 'Obat-obatan'
-        ? 'Pemeriksaan Kesehatan'
+        ? 'Pemberian Obat'
         : 'Aktivitas Gudang';
     var movementWritten = false;
     try {
@@ -289,6 +288,7 @@ class FarmOperationsData {
         'nama': item['nama'],
         'jumlah': quantity,
         'satuan': item['satuan'],
+        'petugas': staff.trim(),
         'catatan': note.trim(),
       });
     } catch (_) {
@@ -361,13 +361,12 @@ class FarmOperationsData {
         'kategori': 'Penjualan kambing',
         'jumlah': sale['total'],
         'tanggal': sale['tanggal'],
-        'keterangan':
-            [
-              if ('${sale['namaBatch'] ?? ''}'.trim().isNotEmpty)
-                '${sale['namaBatch']}',
-              '${sale['namaPembeli'] ?? ''}',
-              '${sale['jumlahDomba']} ekor',
-            ].join(' · '),
+        'keterangan': [
+          if ('${sale['namaBatch'] ?? ''}'.trim().isNotEmpty)
+            '${sale['namaBatch']}',
+          '${sale['namaPembeli'] ?? ''}',
+          '${sale['jumlahDomba']} ekor',
+        ].join(' · '),
         'sumber': 'penjualan',
       });
     }

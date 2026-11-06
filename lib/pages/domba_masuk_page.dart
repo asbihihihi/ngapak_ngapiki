@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../farm_data.dart';
 import '../money_format.dart';
+import '../theme/app_theme.dart';
 import 'domba_qr_page.dart';
 
 class DombaMasukPage extends StatefulWidget {
@@ -70,7 +71,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Konfirmasi data domba'),
+            title: const Text('Konfirmasi data kambing'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,15 +160,15 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("QR Domba Berhasil Dibuat"),
-          backgroundColor: Colors.green,
+          content: Text("QR kambing berhasil dibuat"),
+          backgroundColor: AppTheme.forestGreen,
         ),
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Domba gagal disimpan: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kambing gagal disimpan: $error')),
+        );
       }
     } finally {
       if (mounted) setState(() => saving = false);
@@ -185,13 +186,13 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
       children: [
         Row(
           children: [
-            Icon(icon, color: const Color(0xff0E9F4B), size: 20),
+            Icon(icon, color: AppTheme.forestGreen, size: 20),
 
             const SizedBox(width: 8),
 
             Text(
               label,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -230,7 +231,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
           decoration: InputDecoration(
             hintText: hint,
 
-            hintStyle: GoogleFonts.poppins(color: Colors.grey),
+            hintStyle: GoogleFonts.inter(color: AppTheme.mutedText),
 
             filled: true,
             fillColor: Colors.white,
@@ -255,10 +256,9 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF4F6F5),
+      backgroundColor: AppTheme.warmCream,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xff0E9F4B),
         elevation: 0,
 
         leading: IconButton(
@@ -266,13 +266,13 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
             Navigator.pop(context);
           },
 
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios),
         ),
 
         title: Text(
-          "Input Domba",
-          style: GoogleFonts.poppins(
-            color: Colors.white,
+          "Tambah Kambing",
+          style: GoogleFonts.inter(
+            color: AppTheme.deepGreen,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -284,16 +284,17 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
         child: Column(
           children: [
             Container(
-              height: 220,
+              height: 156,
               width: double.infinity,
-
               decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(
-                    "https://images.unsplash.com/photo-1484557985045-edf25e08da73?q=80&w=1200&auto=format&fit=crop",
-                  ),
-                  fit: BoxFit.cover,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.deepGreen, AppTheme.forestGreen],
                 ),
+              ),
+              child: const Center(
+                child: Icon(Icons.pets_outlined, color: Colors.white, size: 64),
               ),
             ),
 
@@ -316,7 +317,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                       padding: const EdgeInsets.all(20),
 
                       decoration: BoxDecoration(
-                        color: const Color(0xff0E9F4B),
+                        color: AppTheme.forestGreen,
                         borderRadius: BorderRadius.circular(22),
                       ),
 
@@ -324,15 +325,15 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Kode Domba",
-                            style: GoogleFonts.poppins(color: Colors.white70),
+                            "Kode Kambing",
+                            style: GoogleFonts.inter(color: Colors.white70),
                           ),
 
                           const SizedBox(height: 8),
 
                           Text(
                             kodeDomba,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -352,15 +353,15 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                     ),
 
                     buildInput(
-                      label: "Asal Domba",
-                      hint: "Pilih asal domba",
+                      label: "Asal Kambing",
+                      hint: "Masukkan asal kambing",
                       controller: asalController,
                       icon: Icons.local_shipping,
                     ),
 
                     buildInput(
-                      label: "Jenis Domba",
-                      hint: "Pilih jenis domba",
+                      label: "Jenis Kambing",
+                      hint: "Masukkan jenis kambing",
                       controller: jenisController,
                       icon: Icons.sell,
                     ),
@@ -372,13 +373,13 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                           children: [
                             const Icon(
                               Icons.pets,
-                              color: Color(0xff0E9F4B),
+                              color: AppTheme.forestGreen,
                               size: 20,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Kelamin',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
                               ),
@@ -402,9 +403,8 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                               ),
                             ],
                             selected: {kelamin},
-                            onSelectionChanged: (value) => setState(
-                              () => kelamin = value.first,
-                            ),
+                            onSelectionChanged: (value) =>
+                                setState(() => kelamin = value.first),
                           ),
                         ),
                         const SizedBox(height: 22),
@@ -444,7 +444,7 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                           borderRadius: BorderRadius.circular(25),
 
                           border: Border.all(
-                            color: const Color(0xff0E9F4B),
+                            color: AppTheme.forestGreen,
                             width: 1.5,
                           ),
                         ),
@@ -467,13 +467,11 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                                   CircleAvatar(
                                     radius: 35,
 
-                                    backgroundColor: const Color(
-                                      0xff0E9F4B,
-                                    ).withOpacity(0.1),
+                                    backgroundColor: AppTheme.sageGreen,
 
                                     child: const Icon(
                                       Icons.camera_alt,
-                                      color: Color(0xff0E9F4B),
+                                      color: AppTheme.forestGreen,
                                       size: 35,
                                     ),
                                   ),
@@ -483,8 +481,8 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                                   Text(
                                     "Tap untuk tambah foto",
 
-                                    style: GoogleFonts.poppins(
-                                      color: const Color(0xff0E9F4B),
+                                    style: GoogleFonts.inter(
+                                      color: AppTheme.forestGreen,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
                                     ),
@@ -494,8 +492,8 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
                                   Text(
                                     "Ambil dari galeri HP",
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey,
+                                    style: GoogleFonts.inter(
+                                      color: AppTheme.mutedText,
                                     ),
                                   ),
                                 ],
@@ -529,14 +527,14 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                         label: Text(
                           saving ? "Menyimpan..." : "Generate QR",
 
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
                           ),
                         ),
 
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff0E9F4B),
+                          backgroundColor: AppTheme.forestGreen,
 
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -567,8 +565,8 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
                         child: Column(
                           children: [
                             Text(
-                              "QR Domba",
-                              style: GoogleFonts.poppins(
+                              "QR Kambing",
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 22,
                               ),
@@ -586,10 +584,10 @@ class _DombaMasukPageState extends State<DombaMasukPage> {
 
                             Text(
                               kodeDomba,
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.inter(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 24,
-                                color: const Color(0xff0E9F4B),
+                                color: AppTheme.forestGreen,
                               ),
                             ),
                           ],

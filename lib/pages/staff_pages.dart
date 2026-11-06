@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../auth_data.dart';
+import '../theme/app_theme.dart';
 import 'auth_page.dart';
 
 class EmployeeManagementPage extends StatefulWidget {
@@ -88,12 +89,32 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                 ),
               );
         if (employees.isEmpty) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(28),
-              child: Text(
-                'Belum ada karyawan. Tambahkan akun agar karyawan dapat masuk dan mengirim laporan harian.',
-                textAlign: TextAlign.center,
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AppTheme.sageGreen,
+                    foregroundColor: AppTheme.forestGreen,
+                    child: Icon(Icons.groups_outlined, size: 30),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Belum ada karyawan',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.deepGreen,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tambahkan akun agar karyawan dapat masuk dan mengirim laporan harian.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           );
@@ -106,8 +127,17 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
             final employee = employees[index];
             return Card(
               child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-                title: Text('${employee['nama']}'),
+                leading: CircleAvatar(
+                  backgroundColor: AppTheme.sageGreen,
+                  foregroundColor: AppTheme.forestGreen,
+                  child: Text(
+                    '${employee['nama']}'.trim().characters.first.toUpperCase(),
+                  ),
+                ),
+                title: Text(
+                  '${employee['nama']}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 subtitle: Text('${employee['email']}'),
                 trailing: PopupMenuButton<String>(
                   onSelected: (action) {
@@ -560,8 +590,7 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completedAt =
-        DateTime.tryParse('${report['waktuKegiatan']}') ?? DateTime.now();
+    final completedAt = DateTime.tryParse('${report['waktuKegiatan']}');
     final note = '${report['catatan'] ?? ''}'.trim();
     return Card(
       child: Padding(
@@ -570,8 +599,11 @@ class _ReportCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const CircleAvatar(
-              backgroundColor: Color(0xffE4F0E7),
-              child: Icon(Icons.check_circle_outline, color: Color(0xff2D6A4F)),
+              backgroundColor: AppTheme.sageGreen,
+              child: Icon(
+                Icons.check_circle_outline,
+                color: AppTheme.forestGreen,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -588,10 +620,11 @@ class _ReportCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${_formatDate(completedAt)} • ${_formatTime(completedAt)}',
-                    style: const TextStyle(color: Colors.black54),
-                  ),
+                  if (completedAt != null)
+                    Text(
+                      '${_formatDate(completedAt)} • ${_formatTime(completedAt)}',
+                      style: const TextStyle(color: AppTheme.mutedText),
+                    ),
                   if (note.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(note, style: const TextStyle(color: Colors.black87)),

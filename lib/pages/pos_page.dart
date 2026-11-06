@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../money_format.dart';
 import '../pos_data.dart';
+import '../theme/app_theme.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});
@@ -39,9 +40,8 @@ class _PosPageState extends State<PosPage> {
     for (final entry in _cart.entries) {
       final matches = products.where((product) => product['id'] == entry.key);
       if (matches.isEmpty) continue;
-      total +=
-          ((matches.first['hargaPerKg'] as num).toDouble() * entry.value)
-              .roundToDouble();
+      total += ((matches.first['hargaPerKg'] as num).toDouble() * entry.value)
+          .roundToDouble();
     }
     return total;
   }
@@ -60,9 +60,7 @@ class _PosPageState extends State<PosPage> {
     final stock = (product['stokKg'] as num).toDouble();
     if (current >= stock) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Stok ${product['nama']} tidak mencukupi.'),
-        ),
+        SnackBar(content: Text('Stok ${product['nama']} tidak mencukupi.')),
       );
       return;
     }
@@ -181,7 +179,7 @@ class _PosPageState extends State<PosPage> {
                               contentPadding: EdgeInsets.zero,
                               title: Text('${product['nama']}'),
                               subtitle: Text(
-                                '${_money(product['hargaPerKg'] as num)}/kg Â· '
+                                '${_money(product['hargaPerKg'] as num)}/kg · '
                                 '${_money(((product['hargaPerKg'] as num) * entry.value).round())}',
                               ),
                               trailing: Row(
@@ -206,9 +204,8 @@ class _PosPageState extends State<PosPage> {
                                   Text('${entry.value.toStringAsFixed(2)} kg'),
                                   IconButton(
                                     onPressed: () {
-                                      final stock =
-                                          (product['stokKg'] as num)
-                                              .toDouble();
+                                      final stock = (product['stokKg'] as num)
+                                          .toDouble();
                                       if (entry.value >= stock) return;
                                       setState(
                                         () => _cart[entry.key] =
@@ -284,16 +281,18 @@ class _PosPageState extends State<PosPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xfff4f6f8),
+    backgroundColor: AppTheme.warmCream,
     appBar: AppBar(
-      backgroundColor: Colors.white,
-      title: const Text('Ngapak Farm Â· POS'),
+      title: const Text('Ngapak Ngapiki Farm · POS'),
       actions: [
         if (PosData.isOwner)
-          TextButton.icon(
-            onPressed: () => _manageProduct(),
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah produk'),
+          Tooltip(
+            message: 'Tambah produk',
+            child: TextButton.icon(
+              onPressed: () => _manageProduct(),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah produk'),
+            ),
           ),
         const SizedBox(width: 12),
       ],
@@ -303,96 +302,378 @@ class _PosPageState extends State<PosPage> {
       builder: (context, _, _) {
         final all = PosData.productList();
         final shown = all.where((product) {
-          final value = '${product['nama']} ${product['deskripsi']}'.toLowerCase();
+          final value = '${product['nama']} ${product['deskripsi']}'
+              .toLowerCase();
           return value.contains(_query) &&
               (_category == 'Semua' || value.contains(_category.toLowerCase()));
         }).toList();
         final desktop = MediaQuery.sizeOf(context).width >= 1000;
-        final catalog = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _panel('Kategori', Wrap(spacing: 8, runSpacing: 8, children: _categories.entries.map((entry) {
-            final count = entry.key == 'Semua' ? all.length : all.where((p) => '${p['nama']} ${p['deskripsi']}'.toLowerCase().contains(entry.key.toLowerCase())).length;
-            return ChoiceChip(avatar: Icon(entry.value, size: 18), label: Text('${entry.key} Â· $count'), selected: _category == entry.key, onSelected: (_) => setState(() => _category = entry.key));
-          }).toList())),
-          const SizedBox(height: 14),
-          _panel('Daftar Produk', Column(children: [
-            TextField(controller: _search, onChanged: (value) => setState(() => _query = value.trim().toLowerCase()), decoration: InputDecoration(hintText: 'Cari produk...', prefixIcon: const Icon(Icons.search), filled: true, fillColor: const Color(0xfff6f7f9), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
+        final catalog = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _panel(
+              'Kategori',
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.entries.map((entry) {
+                  final count = entry.key == 'Semua'
+                      ? all.length
+                      : all
+                            .where(
+                              (p) => '${p['nama']} ${p['deskripsi']}'
+                                  .toLowerCase()
+                                  .contains(entry.key.toLowerCase()),
+                            )
+                            .length;
+                  return ChoiceChip(
+                    avatar: Icon(entry.value, size: 18),
+                    label: Text('${entry.key} · $count'),
+                    selected: _category == entry.key,
+                    onSelected: (_) => setState(() => _category = entry.key),
+                  );
+                }).toList(),
+              ),
+            ),
             const SizedBox(height: 14),
-            if (shown.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(all.isEmpty ? 'Belum ada produk daging.' : 'Produk tidak ditemukan.'))
-            else LayoutBuilder(builder: (context, size) {
-              final columns = size.maxWidth >= 850 ? 4 : size.maxWidth >= 540 ? 3 : size.maxWidth >= 350 ? 2 : 1;
-              return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: shown.length, gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: columns == 1 ? 2.8 : .82), itemBuilder: (context, index) {
-                final product = shown[index];
-                final id = '${product['id']}';
-                final stock = (product['stokKg'] as num).toDouble();
-                final amount = _cart[id] ?? 0;
-                return InkWell(onTap: stock > amount ? () => _addToCart(product) : null, borderRadius: BorderRadius.circular(15), child: Container(decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xffe8ebef)), borderRadius: BorderRadius.circular(15)), clipBehavior: Clip.antiAlias, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      color: const Color(0xffedf2f6),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          const Icon(
-                            Icons.set_meal_rounded,
-                            size: 54,
-                            color: Color(0xffa8b6c2),
-                          ),
-                          if (PosData.isOwner)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: PopupMenuButton<String>(
-                                onSelected: (action) =>
-                                    _productMenu(action, product),
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Edit produk'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'restock',
-                                    child: Text('Tambah stok'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Nonaktifkan'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
+            _panel(
+              'Daftar Produk',
+              Column(
+                children: [
+                  TextField(
+                    controller: _search,
+                    onChanged: (value) =>
+                        setState(() => _query = value.trim().toLowerCase()),
+                    decoration: InputDecoration(
+                      hintText: 'Cari produk...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: AppTheme.warmCream,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                   ),
-                  Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${product['nama']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)), Text('${_money(product['hargaPerKg'] as num)}/kg', style: const TextStyle(color: Color(0xff2878df), fontWeight: FontWeight.bold)), Row(children: [Expanded(child: Text('Stok ${stock.toStringAsFixed(2)} kg', style: const TextStyle(fontSize: 11, color: Colors.black54))), IconButton(visualDensity: VisualDensity.compact, onPressed: stock > amount ? () => _addToCart(product) : null, icon: const Icon(Icons.add_circle, color: Color(0xff4285f4)))])])),
-                ])));
-              });
-            }),
-          ])),
-        ]);
-        final cartItems = all.where((p) => _cart.containsKey('${p['id']}')).toList();
-        final cart = _panel('Pesanan', Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (cartItems.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Center(child: Text('Keranjang masih kosong', style: TextStyle(color: Colors.black54))))
-          else ...cartItems.map((product) {
-            final id = '${product['id']}'; final qty = _cart[id]!; final stock = (product['stokKg'] as num).toDouble();
-            return Column(children: [Row(children: [Expanded(child: Text('${product['nama']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600))), Text(_money((product['hargaPerKg'] as num) * qty), style: const TextStyle(fontWeight: FontWeight.bold))]), Text('${_money(product['hargaPerKg'] as num)}/kg', style: const TextStyle(fontSize: 12, color: Colors.black54)), Row(children: [IconButton(onPressed: () => setState(() { if (qty <= .25) { _cart.remove(id); } else { _cart[id] = qty - .25; } }), icon: const Icon(Icons.remove_circle_outline)), Text('${qty.toStringAsFixed(2)} kg'), IconButton(onPressed: qty < stock ? () => setState(() => _cart[id] = (qty + .25).clamp(0, stock).toDouble()) : null, icon: const Icon(Icons.add_circle_outline)), const Spacer(), IconButton(onPressed: () => setState(() => _cart.remove(id)), icon: const Icon(Icons.delete_outline, color: Colors.redAccent))]), const Divider()]);
-          }),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Berat total'), Text('${_cart.values.fold<double>(0, (a, b) => a + b).toStringAsFixed(2)} kg')]),
-          const SizedBox(height: 8),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), Text(_money(_cartTotal(all)), style: const TextStyle(color: Color(0xff2878df), fontWeight: FontWeight.bold, fontSize: 18))]),
-          const SizedBox(height: 12),
-          FilledButton.icon(onPressed: _cart.isEmpty ? null : () => _openCart(all), icon: const Icon(Icons.payment), label: const Text('Lanjut pembayaran')),
-        ]));
-        return SingleChildScrollView(padding: const EdgeInsets.all(16), child: desktop ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: catalog), const SizedBox(width: 16), SizedBox(width: 310, child: cart)]) : Column(children: [catalog, const SizedBox(height: 14), cart]));
+                  const SizedBox(height: 14),
+                  if (shown.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        all.isEmpty
+                            ? 'Belum ada produk daging.'
+                            : 'Produk tidak ditemukan.',
+                      ),
+                    )
+                  else
+                    LayoutBuilder(
+                      builder: (context, size) {
+                        final columns = size.maxWidth >= 850
+                            ? 4
+                            : size.maxWidth >= 540
+                            ? 3
+                            : size.maxWidth >= 350
+                            ? 2
+                            : 1;
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: shown.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                childAspectRatio: columns == 1 ? 2.8 : .82,
+                              ),
+                          itemBuilder: (context, index) {
+                            final product = shown[index];
+                            final id = '${product['id']}';
+                            final stock = (product['stokKg'] as num).toDouble();
+                            final amount = _cart[id] ?? 0;
+                            return InkWell(
+                              onTap: stock > amount
+                                  ? () => _addToCart(product)
+                                  : null,
+                              borderRadius: BorderRadius.circular(15),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: const Color(0xFFE8ECE5),
+                                  ),
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        width: double.infinity,
+                                        color: AppTheme.sageGreen,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.set_meal_rounded,
+                                              size: 54,
+                                              color: AppTheme.oliveGreen,
+                                            ),
+                                            if (PosData.isOwner)
+                                              Positioned(
+                                                right: 0,
+                                                top: 0,
+                                                child: PopupMenuButton<String>(
+                                                  onSelected: (action) =>
+                                                      _productMenu(
+                                                        action,
+                                                        product,
+                                                      ),
+                                                  itemBuilder: (_) => const [
+                                                    PopupMenuItem(
+                                                      value: 'edit',
+                                                      child: Text(
+                                                        'Edit produk',
+                                                      ),
+                                                    ),
+                                                    PopupMenuItem(
+                                                      value: 'restock',
+                                                      child: Text(
+                                                        'Tambah stok',
+                                                      ),
+                                                    ),
+                                                    PopupMenuItem(
+                                                      value: 'delete',
+                                                      child: Text(
+                                                        'Nonaktifkan',
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${product['nama']}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${_money(product['hargaPerKg'] as num)}/kg',
+                                            style: const TextStyle(
+                                              color: AppTheme.forestGreen,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'Stok ${stock.toStringAsFixed(2)} kg',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.black54,
+                                                  ),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                onPressed: stock > amount
+                                                    ? () => _addToCart(product)
+                                                    : null,
+                                                icon: const Icon(
+                                                  Icons.add_circle,
+                                                  color: AppTheme.forestGreen,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+        final cartItems = all
+            .where((p) => _cart.containsKey('${p['id']}'))
+            .toList();
+        final cart = _panel(
+          'Pesanan',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (cartItems.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(
+                      'Keranjang masih kosong',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  ),
+                )
+              else
+                ...cartItems.map((product) {
+                  final id = '${product['id']}';
+                  final qty = _cart[id]!;
+                  final stock = (product['stokKg'] as num).toDouble();
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${product['nama']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _money((product['hargaPerKg'] as num) * qty),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${_money(product['hargaPerKg'] as num)}/kg',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => setState(() {
+                              if (qty <= .25) {
+                                _cart.remove(id);
+                              } else {
+                                _cart[id] = qty - .25;
+                              }
+                            }),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                          Text('${qty.toStringAsFixed(2)} kg'),
+                          IconButton(
+                            onPressed: qty < stock
+                                ? () => setState(
+                                    () => _cart[id] = (qty + .25)
+                                        .clamp(0, stock)
+                                        .toDouble(),
+                                  )
+                                : null,
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => setState(() => _cart.remove(id)),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: const Color(0xFFB5473B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                    ],
+                  );
+                }),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Berat total'),
+                  Text(
+                    '${_cart.values.fold<double>(0, (a, b) => a + b).toStringAsFixed(2)} kg',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    _money(_cartTotal(all)),
+                    style: const TextStyle(
+                      color: AppTheme.forestGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _cart.isEmpty ? null : () => _openCart(all),
+                icon: const Icon(Icons.payment),
+                label: const Text('Lanjut pembayaran'),
+              ),
+            ],
+          ),
+        );
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: desktop
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: catalog),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 310, child: cart),
+                  ],
+                )
+              : Column(children: [catalog, const SizedBox(height: 14), cart]),
+        );
       },
     ),
   );
 
   Widget _panel(String title, Widget child) => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)), const SizedBox(height: 14), child]),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 14),
+        child,
+      ],
+    ),
   );
 }
 
@@ -455,9 +736,9 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     } catch (error) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Produk gagal disimpan: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Produk gagal disimpan: $error')),
+        );
       }
     }
   }
@@ -512,9 +793,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                 final stock = double.tryParse(
                   (value ?? '').trim().replaceAll(',', '.'),
                 );
-                if (stock == null ||
-                    !stock.isFinite ||
-                    stock < 0) {
+                if (stock == null || !stock.isFinite || stock < 0) {
                   return 'Masukkan stok yang valid.';
                 }
                 return null;
@@ -588,10 +867,7 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
 
   Future<void> _pickProof(ImageSource source) async {
     try {
-      final photo = await _picker.pickImage(
-        source: source,
-        imageQuality: 80,
-      );
+      final photo = await _picker.pickImage(source: source, imageQuality: 80);
       if (photo != null) {
         final directory = await getApplicationDocumentsDirectory();
         final savedPhoto = await File(photo.path).copy(
@@ -696,8 +972,7 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
             ),
             trailing: Text(
               _money(
-                ((item['beratKg'] as double) *
-                        (item['hargaPerKg'] as num))
+                ((item['beratKg'] as double) * (item['hargaPerKg'] as num))
                     .round(),
               ),
             ),
@@ -760,7 +1035,9 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
             onPressed: _saving ? null : _chooseProofSource,
             icon: const Icon(Icons.add_a_photo_outlined),
             label: Text(
-              _proofPath == null ? 'Masukkan foto bukti QRIS' : 'Ganti foto bukti',
+              _proofPath == null
+                  ? 'Masukkan foto bukti QRIS'
+                  : 'Ganti foto bukti',
             ),
           ),
           if (_proofPath != null) ...[

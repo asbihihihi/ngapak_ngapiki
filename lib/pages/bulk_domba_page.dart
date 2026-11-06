@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../farm_data.dart';
 import '../money_format.dart';
+import '../theme/app_theme.dart';
 import 'domba_masuk_page.dart';
 import 'detail_domba_page.dart';
 import 'bulk_domba_detail_page.dart';
@@ -149,27 +150,27 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
     final action = widget.salesOnly
         ? 'Jual'
         : await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final pair in [
-              ('💉 Nutrisi', 'Nutrisi'),
-              ('💊 Obat / Suntik', 'Obat'),
-              ('🩺 Pemeriksaan', 'Pemeriksaan'),
-              ('📝 Aktivitas Lain', 'Aktivitas'),
-              ('⚖️ Update Bobot', 'Bobot'),
-              ('🚚 Jual / Kirim', 'Jual'),
-            ])
-              ListTile(
-                title: Text(pair.$1),
-                onTap: () => Navigator.pop(ctx, pair.$2),
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final pair in [
+                    ('💉 Nutrisi', 'Nutrisi'),
+                    ('💊 Obat / Suntik', 'Obat'),
+                    ('🩺 Pemeriksaan', 'Pemeriksaan'),
+                    ('📝 Aktivitas Lain', 'Aktivitas'),
+                    ('⚖️ Update Bobot', 'Bobot'),
+                    ('🚚 Jual / Kirim', 'Jual'),
+                  ])
+                    ListTile(
+                      title: Text(pair.$1),
+                      onTap: () => Navigator.pop(ctx, pair.$2),
+                    ),
+                ],
               ),
-          ],
-        ),
-      ),
-    );
+            ),
+          );
     if (action == null || !mounted) return;
     final ids = selected.toList();
     if (action == 'Bobot')
@@ -194,34 +195,40 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppTheme.warmCream,
     appBar: AppBar(
-      title: Text(widget.salesOnly ? 'Pilih Kambing untuk Dijual' : 'Pilih Domba'),
+      title: Text(
+        widget.salesOnly ? 'Pilih kambing untuk dijual' : 'Data kambing',
+      ),
       actions: [
         if (!widget.salesOnly)
-        PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'single')
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DombaMasukPage()),
-              );
-            else
-              _newBatch();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'single', child: Text('Tambah 1 Domba')),
-            PopupMenuItem(value: 'batch', child: Text('Tambah Banyak Domba')),
-          ],
-        ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'single')
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DombaMasukPage()),
+                );
+              else
+                _newBatch();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'single', child: Text('Tambah 1 kambing')),
+              PopupMenuItem(
+                value: 'batch',
+                child: Text('Tambah banyak kambing'),
+              ),
+            ],
+          ),
       ],
     ),
     floatingActionButton: widget.salesOnly
         ? null
         : FloatingActionButton.extended(
-      onPressed: _newBatch,
-      icon: const Icon(Icons.add),
-      label: const Text('Tambah Banyak'),
-    ),
+            onPressed: _newBatch,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Banyak'),
+          ),
     body: ValueListenableBuilder(
       valueListenable: FarmData.domba.listenable(),
       builder: (context, box, _) {
@@ -299,53 +306,57 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
                     ],
                   ),
                   Text(
-                    '${selected.length} domba dipilih  ·  tekan lama untuk memilih',
+                    '${selected.length} kambing dipilih · tekan lama untuk memilih',
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 children: [
                   for (final e in all)
                     Builder(
                       builder: (context) {
                         final canSelect = !FarmData.isSold(e.value);
                         final checked = selected.contains(e.key);
-                        return ListTile(
-                          leading: Checkbox(
-                            value: checked,
-                            onChanged: canSelect
-                                ? (v) => setState(() {
-                                    if (v == true)
-                                      selected.add(e.key);
-                                    else
-                                      selected.remove(e.key);
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: Checkbox(
+                              value: checked,
+                              onChanged: canSelect
+                                  ? (v) => setState(() {
+                                      if (v == true)
+                                        selected.add(e.key);
+                                      else
+                                        selected.remove(e.key);
+                                    })
+                                  : null,
+                            ),
+                            title: Text(
+                              '${e.value['jenis'] ?? 'Kambing'} · ${FarmData.weight(e.value)} kg',
+                            ),
+                            subtitle: Text(
+                              '${e.value['kode']} · ${e.value['batchId'] ?? 'tanpa batch'} · ${e.value['status']}',
+                            ),
+                            onLongPress: canSelect
+                                ? () => setState(() {
+                                    checked
+                                        ? selected.remove(e.key)
+                                        : selected.add(e.key);
                                   })
                                 : null,
-                          ),
-                          title: Text(
-                            '${e.value['jenis'] ?? 'Domba'} · ${FarmData.weight(e.value)} kg',
-                          ),
-                          subtitle: Text(
-                            '${e.value['kode']} · ${e.value['batchId'] ?? 'tanpa batch'} · ${e.value['status']}',
-                          ),
-                          onLongPress: canSelect
-                              ? () => setState(() {
-                                  checked
-                                      ? selected.remove(e.key)
-                                      : selected.add(e.key);
-                                })
-                              : null,
-                          trailing: IconButton(
-                            tooltip: 'Buka detail domba',
-                            icon: const Icon(Icons.open_in_new),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DetailDombaPage(
-                                  data: e.value,
-                                  index: e.key,
+                            trailing: IconButton(
+                              tooltip: 'Buka detail kambing',
+                              icon: const Icon(Icons.open_in_new),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DetailDombaPage(
+                                    data: e.value,
+                                    index: e.key,
+                                  ),
                                 ),
                               ),
                             ),
@@ -446,13 +457,16 @@ class _BatchWeightPageState extends State<BatchWeightPage> {
     if (!confirmed || !mounted) return;
     setState(() => saving = true);
     try {
-      for (var j = 0; j < indices.length; j++) {
-        await FarmData.recordWeight(
-          indices[j],
-          values[j],
-          widget.rows.isNotEmpty ? 'Bobot awal batch' : 'Update bobot massal',
-        );
-      }
+      await FarmData.recordWeights([
+        for (var index = 0; index < indices.length; index++)
+          AnimalWeightEntry(
+            index: indices[index],
+            value: values[index],
+            note: widget.rows.isNotEmpty
+                ? 'Bobot awal batch'
+                : 'Update bobot massal',
+          ),
+      ]);
       if (mounted) Navigator.pop(context);
     } catch (error) {
       if (mounted) {
@@ -632,7 +646,9 @@ class _BulkSalePageState extends State<BulkSalePage> {
         destination.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Isi nama batch, pembeli, WhatsApp, dan alamat/tujuan.'),
+          content: Text(
+            'Isi nama batch, pembeli, WhatsApp, dan alamat/tujuan.',
+          ),
         ),
       );
       return;
@@ -674,8 +690,8 @@ class _BulkSalePageState extends State<BulkSalePage> {
           for (final i in widget.indices)
             i: mode == 'per kg'
                 ? ((FarmData.parseMoney(prices[i]!.text) ?? 0) * w[i]!)
-                    .round()
-                    .toString()
+                      .round()
+                      .toString()
                 : (FarmData.parseMoney(prices[i]!.text) ?? 0).toString(),
         },
         pricingMode: mode,
@@ -777,9 +793,7 @@ class _BulkSalePageState extends State<BulkSalePage> {
                   TextField(
                     controller: prices[i],
                     keyboardType: TextInputType.number,
-                    inputFormatters: const [
-                      ThousandsSeparatorInputFormatter(),
-                    ],
+                    inputFormatters: const [ThousandsSeparatorInputFormatter()],
                     decoration: InputDecoration(
                       labelText: mode == 'per kg'
                           ? 'Harga per kg'

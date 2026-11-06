@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../farm_data.dart';
 import '../operations_data.dart';
+import '../theme/app_theme.dart';
 import 'bulk_receipt_page.dart';
 
 class NotaListPage extends StatefulWidget {
@@ -29,20 +30,18 @@ class _NotaListPageState extends State<NotaListPage> {
       builder: (context, _, _) => ValueListenableBuilder(
         valueListenable: Hive.box('penjualanBox').listenable(),
         builder: (context, _, _) {
-          final entries = FarmOperationsData.financeEntries()
-              .where((row) {
-                if (filter == 'Penjualan') return row['sumber'] == 'penjualan';
-                if (filter == 'Pembelian') {
-                  final source = '${row['sumber'] ?? ''}';
-                  return source.startsWith('pembelian_') ||
-                      (source.isEmpty &&
-                          '${row['kategori'] ?? ''}'
-                              .toLowerCase()
-                              .contains('pembelian'));
-                }
-                return true;
-              })
-              .toList();
+          final entries = FarmOperationsData.financeEntries().where((row) {
+            if (filter == 'Penjualan') return row['sumber'] == 'penjualan';
+            if (filter == 'Pembelian') {
+              final source = '${row['sumber'] ?? ''}';
+              return source.startsWith('pembelian_') ||
+                  (source.isEmpty &&
+                      '${row['kategori'] ?? ''}'.toLowerCase().contains(
+                        'pembelian',
+                      ));
+            }
+            return true;
+          }).toList();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -51,14 +50,11 @@ class _NotaListPageState extends State<NotaListPage> {
                 decoration: const InputDecoration(labelText: 'Filter riwayat'),
                 items: const ['Semua', 'Pembelian', 'Penjualan']
                     .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(value),
-                      ),
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text(value)),
                     )
                     .toList(),
-                onChanged: (value) =>
-                    setState(() => filter = value ?? 'Semua'),
+                onChanged: (value) => setState(() => filter = value ?? 'Semua'),
               ),
               const SizedBox(height: 12),
               if (entries.isEmpty)
@@ -86,10 +82,12 @@ class _NotaListPageState extends State<NotaListPage> {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: isSale ? Colors.green.shade100 : Colors.orange.shade100,
+          backgroundColor: isSale
+              ? AppTheme.sageGreen
+              : const Color(0xFFF4EDE1),
           child: Icon(
             isSale ? Icons.south_west : Icons.shopping_cart_outlined,
-            color: isSale ? Colors.green.shade800 : Colors.orange.shade800,
+            color: isSale ? AppTheme.forestGreen : AppTheme.oliveGreen,
           ),
         ),
         title: Text(

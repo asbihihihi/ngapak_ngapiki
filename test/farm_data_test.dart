@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:ngapak_farm/farm_data.dart';
+import 'package:ngapak_farm/health_data.dart';
 import 'package:ngapak_farm/operations_data.dart';
+import 'package:ngapak_farm/pages/batch_management_page.dart';
 import 'package:ngapak_farm/pages/gudang_page.dart';
 import 'package:ngapak_farm/pages/keuangan_page.dart';
 
@@ -22,6 +24,7 @@ void main() {
     await Hive.openBox('pergerakanGudangBox');
     await Hive.openBox('keuanganBox');
     await Hive.openBox('batchBox');
+    await Hive.openBox('healthRecordBox');
   });
 
   tearDown(() async {
@@ -34,6 +37,7 @@ void main() {
       Hive.box('pergerakanGudangBox'),
       Hive.box('keuanganBox'),
       Hive.box('batchBox'),
+      HealthData.records,
     ]) {
       if (box.isOpen) await box.clear();
     }
@@ -174,6 +178,7 @@ void main() {
       'bobotAwal': 19,
       'bobotTerakhir': 19,
     });
+
     await FarmData.recordWeight(0, 21.5, 'Penimbangan berkala');
     await FarmData.recordHealth(
       0,
@@ -187,6 +192,240 @@ void main() {
     expect(FarmData.indexForQr('NGK-DMB-000003'), 0);
     expect(FarmData.bobot, hasLength(1));
     expect(FarmData.aktivitas, hasLength(1));
+  });
+
+  test(
+    'backdated weighing does not replace the chronologically latest weight',
+    () async {
+      await FarmData.domba.add({
+        'id': 'animal-weight-date',
+        'kode': 'DMB-WEIGHT-DATE',
+        'status': 'aktif',
+        'bobotAwal': 18,
+        'bobotTerakhir': 18,
+      });
+      final today = DateTime.now();
+      final todayDate = today.toIso8601String().substring(0, 10);
+      final yesterdayDate = today
+          .subtract(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
+
+      await FarmData.recordWeight(
+        0,
+        22,
+        'Penimbangan terbaru',
+        date: todayDate,
+      );
+      await FarmData.recordWeight(
+        0,
+        20,
+        'Catatan terlambat',
+        date: yesterdayDate,
+      );
+
+      expect((FarmData.domba.getAt(0) as Map)['bobotTerakhir'], 22);
+      final metrics = FarmData.weightMetricsFor(FarmData.domba.getAt(0));
+      expect(metrics['latest'], 22);
+      expect(metrics['previousGain'], 2);
+      expect(metrics['gain'], 2);
+      expect(metrics['adg'], 2);
+    },
+  );
+
+  test(
+    'weight entry rejects invalid and future dates without saving',
+    () async {
+      await FarmData.domba.add({
+        'id': 'animal-invalid-weight-date',
+        'kode': 'DMB-INVALID-DATE',
+        'status': 'aktif',
+      });
+      final futureDate = DateTime.now()
+          .add(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
+
+      await expectLater(
+        FarmData.recordWeight(0, 20, 'Future', date: futureDate),
+        throwsArgumentError,
+      );
+      await expectLater(
+        FarmData.recordWeight(0, 20, 'Invalid date', date: '2026-02-31'),
+        throwsArgumentError,
+      );
+      expect(FarmData.bobot, isEmpty);
+      expect((FarmData.domba.getAt(0) as Map)['bobotTerakhir'], isNull);
+    },
+  );
+
+  test(
+    'batch weight entries are validated before any data is written',
+    () async {
+      for (var index = 0; index < 2; index++) {
+        await FarmData.domba.add({
+          'id': 'animal-bulk-weight-$index',
+          'kode': 'DMB-BULK-$index',
+          'status': 'aktif',
+        });
+      }
+
+      await expectLater(
+        FarmData.recordWeights([
+          const AnimalWeightEntry(index: 0, value: 21, note: 'Timbang'),
+          const AnimalWeightEntry(index: 1, value: double.nan, note: 'Timbang'),
+        ]),
+        throwsArgumentError,
+      );
+      expect(FarmData.bobot, isEmpty);
+      expect((FarmData.domba.getAt(0) as Map)['bobotTerakhir'], isNull);
+      expect((FarmData.domba.getAt(1) as Map)['bobotTerakhir'], isNull);
+    },
+  );
+
+  test('ADG is omitted when weighings have no positive date range', () async {
+    await FarmData.domba.add({
+      'id': 'animal-same-day-weight',
+      'kode': 'DMB-SAME-DAY',
+      'status': 'aktif',
+    });
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    await FarmData.recordWeight(0, 20, 'Timbang 1', date: today);
+    await FarmData.recordWeight(0, 21, 'Timbang 2', date: today);
+
+    final metrics = FarmData.weightMetricsFor(FarmData.domba.getAt(0));
+    expect(metrics['latest'], 21);
+    expect(metrics['gain'], 1);
+    expect(metrics['adg'], isNull);
+  });
+
+  test(
+    'health records stay linked to one animal and only exam changes status',
+    () async {
+      for (var index = 0; index < 2; index++) {
+        await FarmData.domba.add({
+          'id': 'animal-health-$index',
+          'kode': 'DMB-HEALTH-$index',
+          'status': 'aktif',
+          'statusKesehatan': 'Perlu pemantauan',
+        });
+      }
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final dueDate = DateTime.now()
+          .add(const Duration(days: 7))
+          .toIso8601String()
+          .substring(0, 10);
+
+      await HealthData.addRecord(
+        animalIndex: 0,
+        type: HealthData.examination,
+        date: today,
+        note: 'Nafsu makan baik',
+        staff: 'Petugas A',
+        healthStatus: 'Sehat',
+        symptoms: 'Tidak ada',
+        result: 'Kondisi normal',
+      );
+      await HealthData.addRecord(
+        animalIndex: 0,
+        type: HealthData.vaccination,
+        date: today,
+        note: '',
+        staff: 'Petugas A',
+        vaccineName: 'Vaksin X',
+        nextDueDate: dueDate,
+      );
+      await HealthData.addRecord(
+        animalIndex: 0,
+        type: HealthData.medication,
+        date: today,
+        note: '',
+        staff: '',
+        medicineName: 'Obat Y',
+        reason: 'Sesuai resep',
+      );
+
+      final first = Map<String, dynamic>.from(FarmData.domba.getAt(0));
+      final second = Map<String, dynamic>.from(FarmData.domba.getAt(1));
+      final firstHistory = HealthData.historyFor(first);
+      expect(firstHistory, hasLength(3));
+      expect(firstHistory.map((record) => record['dombaId']).toSet(), {
+        'animal-health-0',
+      });
+      expect(HealthData.historyFor(second), isEmpty);
+      expect(first['statusKesehatan'], 'Sehat');
+      expect(second['statusKesehatan'], 'Perlu pemantauan');
+      expect(
+        HealthData.vaccinationStatus(firstHistory, 'Vaksin X'),
+        'Terjadwal',
+      );
+      expect(
+        HealthData.vaccinationStatus(firstHistory, 'Vaksin belum tercatat'),
+        'Belum dicatat',
+      );
+      await expectLater(
+        HealthData.addRecord(
+          animalIndex: 0,
+          type: HealthData.vaccination,
+          date: '2026-02-31',
+          note: '',
+          staff: '',
+          vaccineName: 'Vaksin tanggal tidak valid',
+        ),
+        throwsArgumentError,
+      );
+      expect(HealthData.historyFor(first), hasLength(3));
+      await FarmData.domba.putAt(0, {...first, 'status': 'terjual'});
+      expect(HealthData.historyFor(FarmData.domba.getAt(0)), hasLength(3));
+      expect((FarmData.domba.getAt(0) as Map)['statusKesehatan'], 'Sehat');
+      final overdueDate = DateTime.now()
+          .subtract(const Duration(days: 1))
+          .toIso8601String()
+          .substring(0, 10);
+      expect(
+        HealthData.vaccinationStatus([
+          {
+            'recordType': HealthData.vaccination,
+            'namaVaksin': 'Vaksin Z',
+            'tanggal': overdueDate,
+            'waktuPencatatan': overdueDate,
+            'jadwalBerikutnya': overdueDate,
+          },
+        ], 'Vaksin Z'),
+        'Terlambat',
+      );
+    },
+  );
+
+  testWidgets('batch cards remain readable on a narrow phone layout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(
+      () => FarmData.domba.add({
+        'id': 'animal-batch-responsive',
+        'kode': 'DMB-RESPONSIVE',
+        'batchId': 'BATCH-RESPONSIVE',
+        'status': 'aktif',
+        'bobotTerakhir': 20,
+      }),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: BatchManagementPage()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('BATCH-RESPONSIVE'), findsOneWidget);
+    expect(find.text('Jumlah kambing'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('BATCH-RESPONSIVE'));
+    await tester.pumpAndSettle();
+    expect(find.text('Anggota batch (1)'), findsOneWidget);
+    expect(find.text('DMB-RESPONSIVE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   test(
@@ -323,7 +562,7 @@ void main() {
   });
 
   test(
-    'warehouse activities lower stock and appear in sale receipt history',
+    'medicine use lowers stock and feed is excluded from health history',
     () async {
       final animal = await FarmData.addAnimal(
         date: '2026-11-03',
@@ -346,14 +585,21 @@ void main() {
         quantity: 1,
         date: '2026-11-03T08:30:00',
         note: 'Diberikan setelah pemeriksaan.',
+        staff: 'Petugas A',
       );
 
       expect(FarmOperationsData.stockFor(itemId), 4);
       final activity = FarmData.aktivitas.values.single;
       expect(activity['nama'], 'Vaksin Cacing');
       expect(activity['kategori'], 'Obat-obatan');
+      expect(activity['tipe'], 'Pemberian Obat');
       expect(activity['kode'], animal['kode']);
+      expect(activity['petugas'], 'Petugas A');
       expect(FarmData.healthHistoryFor(animal).single['nama'], 'Vaksin Cacing');
+      final healthRecord = HealthData.historyFor(animal).single;
+      expect(healthRecord['recordType'], HealthData.medication);
+      expect(healthRecord['namaObat'], 'Vaksin Cacing');
+      expect(healthRecord['dosis'], '1 dosis');
 
       final feedItemId = await FarmOperationsData.saveGoods(
         name: 'Rumput',
@@ -386,7 +632,11 @@ void main() {
       final receiptHistory = sale['items'].single['riwayatKesehatan'] as List;
       expect(
         receiptHistory.map((entry) => entry['nama']),
-        containsAll(['Vaksin Cacing', 'Rumput']),
+        contains('Vaksin Cacing'),
+      );
+      expect(
+        receiptHistory.map((entry) => entry['nama']),
+        isNot(contains('Rumput')),
       );
     },
   );

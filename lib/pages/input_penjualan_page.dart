@@ -8,6 +8,7 @@ import 'bulk_receipt_page.dart';
 import '../farm_data.dart';
 import '../money_format.dart';
 import '../operations_data.dart';
+import '../theme/app_theme.dart';
 
 class InputPenjualanPage extends StatefulWidget {
   final Map data;
@@ -96,7 +97,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Konfirmasi penjualan'),
             content: Text(
-              'Tandai domba ${widget.data['kode']} sebagai terjual kepada '
+              'Tandai kambing ${widget.data['kode']} sebagai terjual kepada '
               '${namaController.text.trim()} dengan bobot ${weight.toString()} '
               'kg dan harga Rp ${price.toString()}?',
             ),
@@ -182,15 +183,16 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF4F6F5),
+      backgroundColor: AppTheme.warmCream,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xff0E9F4B),
-
         title: Text(
-          "Penjualan Domba",
+          "Penjualan Kambing",
 
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.deepGreen,
+          ),
         ),
       ),
 
@@ -218,12 +220,10 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
                     Text(
                       widget.data["kode"],
 
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 28,
-
                         fontWeight: FontWeight.bold,
-
-                        color: const Color(0xff0E9F4B),
+                        color: AppTheme.forestGreen,
                       ),
                     ),
 
@@ -232,7 +232,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
                     Text(
                       widget.data["jenis"],
 
-                      style: GoogleFonts.poppins(fontSize: 16),
+                      style: GoogleFonts.inter(fontSize: 16),
                     ),
                   ],
                 ),
@@ -278,7 +278,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
 
               input("Link Google Maps", mapsController),
 
-              input("Kondisi Domba", kondisiController),
+              input("Kondisi Kambing", kondisiController),
 
               GestureDetector(
                 onTap: pickImage,
@@ -292,7 +292,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
 
                     borderRadius: BorderRadius.circular(20),
 
-                    border: Border.all(color: const Color(0xff0E9F4B)),
+                    border: Border.all(color: AppTheme.oliveGreen),
                   ),
 
                   child: imageFile != null
@@ -305,7 +305,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
                           child: Icon(
                             Icons.camera_alt,
                             size: 40,
-                            color: Color(0xff0E9F4B),
+                            color: AppTheme.forestGreen,
                           ),
                         ),
                 ),
@@ -321,7 +321,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
                   onPressed: saving ? null : _saveSale,
 
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: AppTheme.forestGreen,
 
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
@@ -331,7 +331,7 @@ class _InputPenjualanPageState extends State<InputPenjualanPage> {
                   child: Text(
                     saving ? "MENYIMPAN..." : "TANDAI TERJUAL",
 
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontWeight: FontWeight.bold,
 
                       fontSize: 18,

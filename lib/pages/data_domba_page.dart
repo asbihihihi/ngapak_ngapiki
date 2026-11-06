@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'detail_domba_page.dart';
 import '../farm_data.dart';
+import '../theme/app_theme.dart';
 
 class DataDombaPage extends StatefulWidget {
   const DataDombaPage({super.key});
@@ -35,7 +36,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
       decoration: BoxDecoration(
         color: Colors.white,
 
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected ? color : Colors.transparent,
           width: 2,
@@ -63,7 +64,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
           Text(
             title,
 
-            style: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
+            style: GoogleFonts.inter(color: AppTheme.mutedText, fontSize: 13),
           ),
 
           const SizedBox(height: 8),
@@ -71,9 +72,10 @@ class _DataDombaPageState extends State<DataDombaPage> {
           Text(
             value,
 
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
-              fontSize: 30,
+              fontSize: 28,
+              color: AppTheme.deepGreen,
             ),
           ),
         ],
@@ -84,7 +86,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF4F6F5),
+      backgroundColor: AppTheme.warmCream,
 
       body: ValueListenableBuilder(
         valueListenable: dombaBox.listenable(),
@@ -124,7 +126,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
                 /// HEADER
                 Container(
                   padding: const EdgeInsets.only(
-                    top: 60,
+                    top: 28,
                     left: 20,
                     right: 20,
                     bottom: 30,
@@ -132,7 +134,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
 
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xff0E9F4B), Color(0xff087F3A)],
+                      colors: [AppTheme.forestGreen, AppTheme.deepGreen],
                     ),
 
                     borderRadius: BorderRadius.only(
@@ -147,9 +149,9 @@ class _DataDombaPageState extends State<DataDombaPage> {
 
                     children: [
                       Text(
-                        "Data Domba",
+                        "Data Kambing",
 
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
 
@@ -160,9 +162,9 @@ class _DataDombaPageState extends State<DataDombaPage> {
                       const SizedBox(height: 8),
 
                       Text(
-                        "Kelola dan pantau data domba Anda",
+                        "Kelola dan pantau ternak Anda",
 
-                        style: GoogleFonts.poppins(color: Colors.white70),
+                        style: GoogleFonts.inter(color: Colors.white70),
                       ),
 
                       const SizedBox(height: 25),
@@ -191,9 +193,9 @@ class _DataDombaPageState extends State<DataDombaPage> {
 
                             icon: const Icon(Icons.search),
 
-                            hintText: "Cari domba...",
+                            hintText: "Cari kambing...",
 
-                            hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                            hintStyle: GoogleFonts.inter(color: Colors.grey),
                           ),
                         ),
                       ),
@@ -256,19 +258,19 @@ class _DataDombaPageState extends State<DataDombaPage> {
 
                         children: [
                           Text(
-                            "Daftar Domba",
+                            "Daftar Kambing",
 
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               fontWeight: FontWeight.bold,
-
-                              fontSize: 24,
+                              fontSize: 22,
+                              color: AppTheme.deepGreen,
                             ),
                           ),
 
                           Text(
                             "${dataDomba.length} Data",
 
-                            style: GoogleFonts.poppins(color: Colors.grey),
+                            style: GoogleFonts.inter(color: AppTheme.mutedText),
                           ),
                         ],
                       ),
@@ -280,7 +282,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Text(
-                            'Belum ada domba ${statusFilter.toLowerCase()}'
+                            'Belum ada kambing ${statusFilter.toLowerCase()}'
                             '${searchText.isEmpty ? '.' : ' yang cocok dengan pencarian.'}',
                             textAlign: TextAlign.center,
                           ),
@@ -291,192 +293,189 @@ class _DataDombaPageState extends State<DataDombaPage> {
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: dataDomba.length,
                           itemBuilder: (context, index) {
-                          final item = dataDomba[index];
+                            final item = dataDomba[index];
 
-                          final isTerjual = FarmData.isSold(item);
+                            final isTerjual = FarmData.isSold(item);
 
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
 
-                                MaterialPageRoute(
-                                  builder: (context) => DetailDombaPage(
-                                    data: Map<String, dynamic>.from(item),
+                                  MaterialPageRoute(
+                                    builder: (context) => DetailDombaPage(
+                                      data: Map<String, dynamic>.from(item),
 
-                                    index: box.values.toList().indexOf(item),
-                                  ),
-                                ),
-                              );
-                            },
-
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 18),
-
-                              padding: const EdgeInsets.all(16),
-
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-
-                                borderRadius: BorderRadius.circular(28),
-
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-
-                                    blurRadius: 10,
-                                  ),
-                                ],
-                              ),
-
-                              child: Row(
-                                children: [
-                                  /// FOTO
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(20),
-
-                                    child: item["foto"] != null &&
-                                            item["foto"].toString().isNotEmpty
-                                        ? Image.file(
-                                            File(item["foto"]),
-                                            width: 95,
-                                            height: 95,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) =>
-                                                _photoPlaceholder(),
-                                          )
-                                        : _photoPlaceholder(),
-                                  ),
-
-                                  const SizedBox(width: 16),
-
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-
-                                                children: [
-                                                  Text(
-                                                    item["kode"] ?? "-",
-
-                                                    style: GoogleFonts.poppins(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-
-                                                      fontSize: 22,
-
-                                                      color: const Color(
-                                                        0xff0E9F4B,
-                                                      ),
-                                                    ),
-                                                  ),
-
-                                                  Text(
-                                                    item["jenis"] ?? "-",
-
-                                                    style: GoogleFonts.poppins(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-
-                                                    vertical: 5,
-                                                  ),
-
-                                              decoration: BoxDecoration(
-                                                color: isTerjual
-                                                    ? Colors.red.withOpacity(
-                                                        0.12,
-                                                      )
-                                                    : Colors.green.withOpacity(
-                                                        0.12,
-                                                      ),
-
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-
-                                              child: Text(
-                                                isTerjual ? "Terjual" : "Aktif",
-
-                                                style: GoogleFonts.poppins(
-                                                  color: isTerjual
-                                                      ? Colors.red
-                                                      : Colors.green,
-
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-
-                                        const SizedBox(height: 10),
-
-                                        Text(
-                                          "Asal : ${item["asal"]}",
-
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 5),
-
-                                        Text(
-                                          "Berat : ${item["berat"]} Kg",
-
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 10),
-
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.calendar_month,
-
-                                              size: 18,
-
-                                              color: Colors.grey[600],
-                                            ),
-
-                                            const SizedBox(width: 6),
-
-                                            Text(
-                                              item["tanggal"] ?? "-",
-
-                                              style: GoogleFonts.poppins(
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                      index: box.values.toList().indexOf(item),
                                     ),
                                   ),
-                                ],
+                                );
+                              },
+
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 18),
+
+                                padding: const EdgeInsets.all(16),
+
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+
+                                  borderRadius: BorderRadius.circular(28),
+
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+
+                                child: Row(
+                                  children: [
+                                    /// FOTO
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+
+                                      child:
+                                          item["foto"] != null &&
+                                              item["foto"].toString().isNotEmpty
+                                          ? Image.file(
+                                              File(item["foto"]),
+                                              width: 95,
+                                              height: 95,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  _photoPlaceholder(),
+                                            )
+                                          : _photoPlaceholder(),
+                                    ),
+
+                                    const SizedBox(width: 16),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+
+                                                  children: [
+                                                    Text(
+                                                      item["kode"] ?? "-",
+
+                                                      style: GoogleFonts.inter(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 22,
+                                                        color: AppTheme
+                                                            .forestGreen,
+                                                      ),
+                                                    ),
+
+                                                    Text(
+                                                      item["jenis"] ?? "-",
+
+                                                      style: GoogleFonts.inter(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+
+                                                      vertical: 5,
+                                                    ),
+
+                                                decoration: BoxDecoration(
+                                                  color: isTerjual
+                                                      ? const Color(0xFFF8E9E6)
+                                                      : AppTheme.sageGreen,
+
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+
+                                                child: Text(
+                                                  isTerjual
+                                                      ? "Terjual"
+                                                      : "Aktif",
+
+                                                  style: GoogleFonts.inter(
+                                                    color: isTerjual
+                                                        ? const Color(
+                                                            0xFFB5473B,
+                                                          )
+                                                        : AppTheme.forestGreen,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          Text(
+                                            "Asal : ${item["asal"]}",
+
+                                            style: GoogleFonts.inter(
+                                              color: AppTheme.mutedText,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          Text(
+                                            "Berat : ${item["berat"]} Kg",
+
+                                            style: GoogleFonts.inter(
+                                              color: AppTheme.mutedText,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_month,
+
+                                                size: 18,
+
+                                                color: AppTheme.mutedText,
+                                              ),
+
+                                              const SizedBox(width: 6),
+
+                                              Text(
+                                                item["tanggal"] ?? "-",
+
+                                                style: GoogleFonts.inter(
+                                                  color: AppTheme.mutedText,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
+                            );
                           },
                         ),
 
@@ -495,7 +494,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
   Widget _photoPlaceholder() => Container(
     width: 95,
     height: 95,
-    color: const Color(0xffE8F5E9),
-    child: const Icon(Icons.pets, size: 42, color: Color(0xff2D6A4F)),
+    color: AppTheme.sageGreen,
+    child: const Icon(Icons.pets, size: 42, color: AppTheme.forestGreen),
   );
 }

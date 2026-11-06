@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'pages/auth_page.dart';
+import 'pages/opening_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ void main() async {
   await Hive.openBox('userBox');
   await Hive.openBox('dailyReportBox');
   await Hive.openBox('sessionBox');
+  await Hive.openBox('healthRecordBox');
 
   final dombaBox = Hive.box('dombaBox');
   final bobotBox = Hive.box('bobotDombaBox');
@@ -63,7 +65,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      theme: AppTheme.lightTheme,
+      home: const OpeningScreen(),
     );
   }
 }

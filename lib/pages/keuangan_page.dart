@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../money_format.dart';
 import '../operations_data.dart';
+import '../theme/app_theme.dart';
 
 class KeuanganPage extends StatefulWidget {
   const KeuanganPage({super.key});
@@ -54,17 +55,17 @@ class _KeuanganPageState extends State<KeuanganPage> {
                     _summaryCard(
                       'Pemasukan',
                       _rupiah(summary['pemasukan']!),
-                      Colors.green,
+                      AppTheme.forestGreen,
                     ),
                     _summaryCard(
                       'Pengeluaran',
                       _rupiah(summary['pengeluaran']!),
-                      Colors.red,
+                      const Color(0xFFB5473B),
                     ),
                     _summaryCard(
                       'Selisih',
                       _rupiah(summary['selisih']!),
-                      Colors.blue,
+                      AppTheme.oliveGreen,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
