@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:hive/hive.dart';
+
+import 'farm_sync_service.dart';
 import 'money_format.dart';
 
 class AnimalWeightEntry {
@@ -177,21 +179,28 @@ class FarmData {
       _batchSequence = 0;
     }
     final base = _nextSequential(
-      'BATCH-$day-',
+      'BATCH-$day$_codeSuffixSegment-',
       Hive.box('batchBox').values,
       'batchId',
     );
     final stored = int.tryParse(base.split('-').last) ?? 0;
     final current = _batchSequence > stored - 1 ? _batchSequence : stored - 1;
     _batchSequence = current + 1;
-    return 'BATCH-$day-${_batchSequence.toString().padLeft(3, '0')}';
+    return 'BATCH-$day$_codeSuffixSegment-'
+        '${_batchSequence.toString().padLeft(3, '0')}';
   }
 
   static String nextSaleCode() => _nextSequential(
-    'TRX-${DateTime.now().toIso8601String().substring(0, 10).replaceAll('-', '')}-',
+    'TRX-${DateTime.now().toIso8601String().substring(0, 10).replaceAll('-', '')}'
+        '$_codeSuffixSegment-',
     penjualan.values,
     'transaksiId',
   );
+
+  static String get _codeSuffixSegment {
+    final suffix = FarmSyncService.codeSuffix;
+    return suffix.isEmpty ? '' : '-$suffix';
+  }
 
   static Future<List<Map<String, dynamic>>> createBatch({
     required int count,
@@ -287,7 +296,9 @@ class FarmData {
         };
         final key = await domba.add(row);
         dombaKeys.add(key);
-        row['id'] = key.toString();
+        row['id'] = FarmSyncService.codeSuffix.isEmpty
+            ? key.toString()
+            : 'animal-$code';
         await domba.put(key, row);
         weightKeys.add(
           await bobot.add({
@@ -348,11 +359,12 @@ class FarmData {
     var next = 1;
     for (final row in domba.values) {
       final code = (row['kode'] ?? '').toString();
-      final match = RegExp(r'(\d+)$').firstMatch(code);
+      final match = RegExp(r'^DMB-(\d+)').firstMatch(code);
       final number = int.tryParse(match?.group(1) ?? '0') ?? 0;
       if (number >= next) next = number + 1;
     }
-    String codeFor(int n) => 'DMB-${n.toString().padLeft(6, '0')}';
+    String codeFor(int n) =>
+        'DMB-${n.toString().padLeft(6, '0')}$_codeSuffixSegment';
     while (domba.values.any(
       (row) =>
           row['kode'] == codeFor(next) ||
@@ -440,7 +452,9 @@ class FarmData {
       'statusKesehatan': 'Belum diperiksa',
     };
     final key = await domba.add(row);
-    row['id'] = key.toString();
+    row['id'] = FarmSyncService.codeSuffix.isEmpty
+        ? key.toString()
+        : 'animal-$code';
     dynamic weightKey;
     var expenseWritten = false;
     try {

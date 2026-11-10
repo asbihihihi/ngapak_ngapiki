@@ -16,6 +16,12 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>ngapak_farm</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kamera digunakan untuk memindai QR kambing.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Foto digunakan untuk menambahkan gambar kambing dan menyimpan QR serta nota.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Aplikasi menyimpan gambar QR dan nota ke galeri Anda.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

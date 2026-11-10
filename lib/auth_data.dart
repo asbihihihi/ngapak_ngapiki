@@ -3,6 +3,9 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:hive/hive.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'supabase_config.dart';
 
 class AuthData {
   static const ownerRole = 'pemilik';
@@ -12,17 +15,34 @@ class AuthData {
   static Box get users => Hive.box('userBox');
   static Box get reports => Hive.box('dailyReportBox');
   static Box get session => Hive.box('sessionBox');
+  static bool get isSupabaseAuthEnabled => SupabaseConfig.isConfigured;
 
   static Map<String, dynamic>? get currentUser {
+    if (SupabaseConfig.isConfigured) {
+      if (Supabase.instance.client.auth.currentSession == null) return null;
+      final cachedUser = session.get('supabaseUser');
+      return cachedUser == null ? null : Map<String, dynamic>.from(cachedUser);
+    }
     final id = session.get('currentUserId');
     final user = id == null ? null : users.get(id);
     return user == null ? null : Map<String, dynamic>.from(user);
   }
 
-  static bool get hasOwner =>
-      users.values.any((user) => user['role'] == ownerRole);
+  static bool get hasOwner => SupabaseConfig.isConfigured
+      ? false
+      : users.values.any((user) => user['role'] == ownerRole);
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
+
+  static String normalizeUsername(String username) =>
+      username.trim().toLowerCase();
+
+  static String? validateUsername(String username) {
+    final normalized = normalizeUsername(username);
+    return RegExp(r'^[a-z0-9._-]{3,30}$').hasMatch(normalized)
+        ? null
+        : 'Username 3–30 karakter; gunakan huruf kecil, angka, titik, atau tanda -/_ .';
+  }
 
   static String? validateNameAndEmail(String name, String email) {
     if (name.trim().isEmpty) return 'Nama wajib diisi.';
@@ -39,15 +59,33 @@ class AuthData {
   static String? validatePassword(String password) =>
       password.length < 8 ? 'Kata sandi minimal 8 karakter.' : null;
 
-  static Future<void> registerOwner({
+  static Future<bool> registerOwner({
     required String name,
     required String email,
     required String password,
+    String farmName = '',
   }) async {
     final validation = validateNameAndEmail(name, email);
     if (validation != null) throw ArgumentError(validation);
     final passwordValidation = validatePassword(password);
     if (passwordValidation != null) throw ArgumentError(passwordValidation);
+    if (SupabaseConfig.isConfigured) {
+      if (farmName.trim().isEmpty) {
+        throw ArgumentError('Nama peternakan wajib diisi.');
+      }
+      final response = await Supabase.instance.client.auth.signUp(
+        email: normalizeEmail(email),
+        password: password,
+        data: {'full_name': name.trim(), 'farm_name': farmName.trim()},
+      );
+      final user = response.user;
+      if (user == null) {
+        throw StateError('Pendaftaran tidak berhasil. Silakan coba lagi.');
+      }
+      if (response.session == null) return false;
+      await _cacheSupabaseUser(user);
+      return true;
+    }
     if (hasOwner) throw StateError('Akun pemilik sudah terdaftar.');
     final normalizedEmail = normalizeEmail(email);
     if (_userForEmail(normalizedEmail) != null) {
@@ -64,14 +102,38 @@ class AuthData {
       'dibuatPada': DateTime.now().toIso8601String(),
     });
     await login(email: email, password: password);
+    return true;
   }
 
   static Future<void> createEmployee({
     required String name,
     required String email,
     required String password,
+    String? username,
   }) async {
     _requireOwner();
+    if (SupabaseConfig.isConfigured) {
+      final normalizedUsername = normalizeUsername(username ?? email);
+      final usernameValidation = validateUsername(normalizedUsername);
+      if (usernameValidation != null) {
+        throw ArgumentError(usernameValidation);
+      }
+      final passwordValidation = validatePassword(password);
+      if (passwordValidation != null) {
+        throw ArgumentError(passwordValidation);
+      }
+      await Supabase.instance.client.functions.invoke(
+        'manage-employee',
+        body: {
+          'action': 'create',
+          'farm_id': currentUser?['farmId'],
+          'name': name.trim(),
+          'username': normalizedUsername,
+          'password': password,
+        },
+      );
+      return;
+    }
     final validation = validateNameAndEmail(name, email);
     if (validation != null) throw ArgumentError(validation);
     final passwordValidation = validatePassword(password);
@@ -99,6 +161,25 @@ class AuthData {
     String? newPassword,
   }) async {
     _requireOwner();
+    if (SupabaseConfig.isConfigured) {
+      if (name.trim().isEmpty) throw ArgumentError('Nama wajib diisi.');
+      if (newPassword != null &&
+          newPassword.isNotEmpty &&
+          validatePassword(newPassword) != null) {
+        throw ArgumentError('Kata sandi minimal 8 karakter.');
+      }
+      await Supabase.instance.client.functions.invoke(
+        'manage-employee',
+        body: {
+          'action': 'update',
+          'farm_id': currentUser?['farmId'],
+          'employee_id': id,
+          'name': name.trim(),
+          'password': newPassword ?? '',
+        },
+      );
+      return;
+    }
     final existing = users.get(id);
     if (existing == null || existing['role'] != employeeRole) {
       throw StateError('Akun karyawan tidak ditemukan.');
@@ -130,6 +211,17 @@ class AuthData {
 
   static Future<void> deleteEmployee(String id) async {
     _requireOwner();
+    if (SupabaseConfig.isConfigured) {
+      await Supabase.instance.client.functions.invoke(
+        'manage-employee',
+        body: {
+          'action': 'delete',
+          'farm_id': currentUser?['farmId'],
+          'employee_id': id,
+        },
+      );
+      return;
+    }
     final employee = users.get(id);
     if (employee == null || employee['role'] != employeeRole) {
       throw StateError('Akun karyawan tidak ditemukan.');
@@ -141,6 +233,22 @@ class AuthData {
     required String email,
     required String password,
   }) async {
+    if (SupabaseConfig.isConfigured) {
+      final normalizedIdentifier = normalizeEmail(email);
+      final loginEmail = normalizedIdentifier.contains('@')
+          ? normalizedIdentifier
+          : '${normalizeUsername(normalizedIdentifier)}@staff.ngapak.invalid';
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: loginEmail,
+        password: password,
+      );
+      final user = response.user;
+      if (user == null) {
+        throw StateError('Email atau kata sandi salah.');
+      }
+      await _cacheSupabaseUser(user);
+      return;
+    }
     final user = _userForEmail(normalizeEmail(email));
     if (user == null || !_verifyPassword(password, user)) {
       throw StateError('Email atau kata sandi salah.');
@@ -148,7 +256,99 @@ class AuthData {
     await session.put('currentUserId', user['id']);
   }
 
-  static Future<void> logout() => session.delete('currentUserId');
+  static Future<void> logout() async {
+    if (SupabaseConfig.isConfigured) {
+      await Supabase.instance.client.auth.signOut();
+      await session.delete('supabaseUser');
+      return;
+    }
+    await session.delete('currentUserId');
+  }
+
+  static Future<void> restoreSupabaseSession() async {
+    if (!SupabaseConfig.isConfigured ||
+        Supabase.instance.client.auth.currentSession == null) {
+      return;
+    }
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    await _cacheSupabaseUser(user);
+  }
+
+  static Future<void> _cacheSupabaseUser(User user) async {
+    final client = Supabase.instance.client;
+    final profile = await client
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', user.id)
+        .maybeSingle();
+    final membership = await client
+        .from('farm_members')
+        .select('farm_id, role, farms(name)')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+    if (membership == null) {
+      throw StateError(
+        'Akun ini belum terhubung ke peternakan. Hubungi pemilik.',
+      );
+    }
+
+    final farm = membership['farms'];
+    final userData = <String, dynamic>{
+      'id': user.id,
+      'nama':
+          profile?['full_name'] ??
+          user.userMetadata?['full_name'] ??
+          user.email?.split('@').first ??
+          'Pengguna',
+      'email': user.email ?? '',
+      if (profile?['username'] is String) 'username': profile!['username'],
+      'role': membership['role'] == 'owner' ? ownerRole : employeeRole,
+      'farmId': membership['farm_id'],
+      if (farm is Map) 'farmName': farm['name'],
+    };
+    await session.put('supabaseUser', userData);
+  }
+
+  static Future<List<Map<String, dynamic>>> employeeList() async {
+    _requireOwner();
+    if (!SupabaseConfig.isConfigured) {
+      return users.values
+          .where((user) => user['role'] == employeeRole)
+          .map((user) => Map<String, dynamic>.from(user))
+          .toList()
+        ..sort(
+          (a, b) => '${a['nama']}'.toLowerCase().compareTo(
+            '${b['nama']}'.toLowerCase(),
+          ),
+        );
+    }
+
+    final farmId = currentUser?['farmId'];
+    if (farmId is! String || farmId.isEmpty) {
+      throw StateError('Peternakan akun ini tidak ditemukan.');
+    }
+    final memberships = await Supabase.instance.client
+        .from('farm_members')
+        .select('user_id, profiles!inner(full_name, username)')
+        .eq('farm_id', farmId)
+        .eq('role', 'employee');
+    final employees =
+        memberships.map((row) {
+          final profile = Map<String, dynamic>.from(row['profiles'] as Map);
+          return <String, dynamic>{
+            'id': row['user_id'],
+            'nama': profile['full_name'],
+            'username': profile['username'] ?? '',
+          };
+        }).toList()..sort(
+          (a, b) => '${a['nama']}'.toLowerCase().compareTo(
+            '${b['nama']}'.toLowerCase(),
+          ),
+        );
+    return employees;
+  }
 
   static Future<String> saveDailyReport({
     required String activity,

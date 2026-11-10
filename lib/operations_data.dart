@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:hive/hive.dart';
 
+import 'farm_sync_service.dart';
 import 'farm_data.dart';
 import 'money_format.dart';
 
@@ -16,10 +17,16 @@ class FarmOperationsData {
 
   static String nextGoodsId() {
     var number = 1;
-    while (goods.containsKey('BRG-${number.toString().padLeft(6, '0')}')) {
+    while (goods.containsKey(_goodsCode(number))) {
       number++;
     }
-    return 'BRG-${number.toString().padLeft(6, '0')}';
+    return _goodsCode(number);
+  }
+
+  static String _goodsCode(int number) {
+    final suffix = FarmSyncService.codeSuffix;
+    return 'BRG-${number.toString().padLeft(6, '0')}'
+        '${suffix.isEmpty ? '' : '-$suffix'}';
   }
 
   static Future<T> _withStockLock<T>(Future<T> Function() operation) {

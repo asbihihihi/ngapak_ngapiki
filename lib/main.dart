@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'farm_sync_service.dart';
 import 'pages/opening_screen.dart';
+import 'supabase_config.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await SupabaseConfig.initialize();
   await Hive.initFlutter();
 
   await Hive.openBox('dombaBox');
@@ -23,6 +26,8 @@ void main() async {
   await Hive.openBox('dailyReportBox');
   await Hive.openBox('sessionBox');
   await Hive.openBox('healthRecordBox');
+  await Hive.openBox('syncMetaBox');
+  await FarmSyncService.initialize();
 
   final dombaBox = Hive.box('dombaBox');
   final bobotBox = Hive.box('bobotDombaBox');

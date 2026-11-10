@@ -51,6 +51,7 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _farmNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   late bool _registerMode;
@@ -60,12 +61,13 @@ class _AuthPageState extends State<AuthPage> {
   @override
   void initState() {
     super.initState();
-    _registerMode = !AuthData.hasOwner;
+    _registerMode = !AuthData.isSupabaseAuthEnabled && !AuthData.hasOwner;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _farmNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -76,11 +78,24 @@ class _AuthPageState extends State<AuthPage> {
     setState(() => _busy = true);
     try {
       if (_registerMode) {
-        await AuthData.registerOwner(
+        final authenticated = await AuthData.registerOwner(
           name: _nameController.text,
+          farmName: _farmNameController.text,
           email: _emailController.text,
           password: _passwordController.text,
         );
+        if (!authenticated) {
+          if (!mounted) return;
+          setState(() => _registerMode = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Pendaftaran berhasil. Periksa email untuk konfirmasi, lalu masuk.',
+              ),
+            ),
+          );
+          return;
+        }
       } else {
         await AuthData.login(
           email: _emailController.text,
@@ -185,17 +200,49 @@ class _AuthPageState extends State<AuthPage> {
                                   : null,
                             ),
                             const SizedBox(height: 14),
+                            if (AuthData.isSupabaseAuthEnabled) ...[
+                              TextFormField(
+                                controller: _farmNameController,
+                                textCapitalization: TextCapitalization.words,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nama peternakan',
+                                  prefixIcon: Icon(Icons.agriculture_outlined),
+                                ),
+                                validator: (value) =>
+                                    AuthData.isSupabaseAuthEnabled &&
+                                        _registerMode &&
+                                        (value == null || value.trim().isEmpty)
+                                    ? 'Nama peternakan wajib diisi.'
+                                    : null,
+                              ),
+                              const SizedBox(height: 14),
+                            ],
                           ],
                           TextFormField(
                             controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: Icon(Icons.email_outlined),
+                            keyboardType:
+                                AuthData.isSupabaseAuthEnabled && !_registerMode
+                                ? TextInputType.text
+                                : TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText:
+                                  AuthData.isSupabaseAuthEnabled &&
+                                      !_registerMode
+                                  ? 'Email atau username'
+                                  : 'Email',
+                              prefixIcon: const Icon(Icons.email_outlined),
                             ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'Email wajib diisi.';
+                                return AuthData.isSupabaseAuthEnabled &&
+                                        !_registerMode
+                                    ? 'Email atau username wajib diisi.'
+                                    : 'Email wajib diisi.';
+                              }
+                              if (AuthData.isSupabaseAuthEnabled &&
+                                  !_registerMode &&
+                                  !value.contains('@')) {
+                                return AuthData.validateUsername(value);
                               }
                               if (AuthData.validateNameAndEmail(
                                     'Nama',
@@ -269,6 +316,21 @@ class _AuthPageState extends State<AuthPage> {
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppTheme.mutedText),
+                            ),
+                          ],
+                          if (AuthData.isSupabaseAuthEnabled) ...[
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => setState(
+                                      () => _registerMode = !_registerMode,
+                                    ),
+                              child: Text(
+                                _registerMode
+                                    ? 'Sudah punya akun? Masuk'
+                                    : 'Pemilik baru? Daftar peternakan',
+                              ),
                             ),
                           ],
                         ],

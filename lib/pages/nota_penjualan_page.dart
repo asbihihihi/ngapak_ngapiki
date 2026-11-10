@@ -68,8 +68,12 @@ class NotaPage extends StatelessWidget {
   Future<void> saveToGallery(
     BuildContext context,
   ) async {
-    await Permission.storage.request();
-    await Permission.photos.request();
+    if (Platform.isAndroid) {
+      await Permission.storage.request();
+    }
+    if (Platform.isAndroid || Platform.isIOS) {
+      await Permission.photos.request();
+    }
 
     Uint8List? image =
         await screenshotController.capture();

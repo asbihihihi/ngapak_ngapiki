@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../auth_data.dart';
 import '../farm_data.dart';
+import '../farm_sync_service.dart';
 import '../operations_data.dart';
 import '../pos_data.dart';
 import '../theme/app_theme.dart';
@@ -30,6 +33,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    final farmId = AuthData.currentUser?['farmId'];
+    if (farmId is String && farmId.isNotEmpty) {
+      unawaited(FarmSyncService.start(farmId: farmId));
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(FarmSyncService.stop());
+    super.dispose();
+  }
+
   Map<String, dynamic> _asMap(dynamic raw) =>
       Map<String, dynamic>.from(raw as Map);
 
@@ -104,7 +122,44 @@ class _HomePageState extends State<HomePage> {
           onSelected: (id) => _navigate(id, isOwner),
           onLogout: () => logoutToLogin(context),
         ),
-        body: isOwner ? _ownerDashboard(user) : _employeeDashboard(user),
+        body: Column(
+          children: [
+            ValueListenableBuilder<String>(
+              valueListenable: FarmSyncService.status,
+              builder: (context, status, _) {
+                if (!AuthData.isSupabaseAuthEnabled ||
+                    status == 'Data tersinkron') {
+                  return const SizedBox.shrink();
+                }
+                return Material(
+                  color: status.startsWith('Sinkronisasi tertunda')
+                      ? Theme.of(context).colorScheme.errorContainer
+                      : AppTheme.sageGreen,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      children: [
+                        if (status.startsWith('Sinkronisasi tertunda'))
+                          const Icon(Icons.cloud_off_outlined)
+                        else
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(status)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Expanded(
+              child: isOwner ? _ownerDashboard(user) : _employeeDashboard(user),
+            ),
+          ],
+        ),
       ),
     );
   }

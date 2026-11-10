@@ -13,12 +13,25 @@ class EmployeeManagementPage extends StatefulWidget {
 }
 
 class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
+  late Future<List<Map<String, dynamic>>> _employees;
+
+  @override
+  void initState() {
+    super.initState();
+    _employees = AuthData.employeeList();
+  }
+
+  void _reloadEmployees() {
+    setState(() => _employees = AuthData.employeeList());
+  }
+
   Future<void> _editEmployee([Map<String, dynamic>? employee]) async {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _EmployeeFormDialog(employee: employee),
     );
     if (saved == true && mounted) {
+      _reloadEmployees();
       _showMessage('Data karyawan berhasil disimpan.');
     }
   }
@@ -46,7 +59,10 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
     if (confirmed != true) return;
     try {
       await AuthData.deleteEmployee(employee['id'] as String);
-      if (mounted) _showMessage('Akun karyawan berhasil dihapus.');
+      if (mounted) {
+        _reloadEmployees();
+        _showMessage('Akun karyawan berhasil dihapus.');
+      }
     } catch (error) {
       if (mounted) _showMessage(_messageFor(error));
     }
@@ -75,87 +91,115 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
       icon: const Icon(Icons.person_add_alt_1),
       label: const Text('Tambah'),
     ),
-    body: ValueListenableBuilder(
-      valueListenable: AuthData.users.listenable(),
-      builder: (context, box, _) {
-        final employees =
-            box.values
-                .where((user) => user['role'] == AuthData.employeeRole)
-                .map((user) => Map<String, dynamic>.from(user))
-                .toList()
-              ..sort(
-                (a, b) => '${a['nama']}'.toLowerCase().compareTo(
-                  '${b['nama']}'.toLowerCase(),
+    body: AuthData.isSupabaseAuthEnabled
+        ? FutureBuilder<List<Map<String, dynamic>>>(
+            future: _employees,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text('Gagal memuat karyawan: ${snapshot.error}'),
+                );
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return _employeeList(context, snapshot.data!);
+            },
+          )
+        : ValueListenableBuilder(
+            valueListenable: AuthData.users.listenable(),
+            builder: (context, box, _) {
+              final employees =
+                  box.values
+                      .where((user) => user['role'] == AuthData.employeeRole)
+                      .map((user) => Map<String, dynamic>.from(user))
+                      .toList()
+                    ..sort(
+                      (a, b) => '${a['nama']}'.toLowerCase().compareTo(
+                        '${b['nama']}'.toLowerCase(),
+                      ),
+                    );
+              return _employeeList(context, employees);
+            },
+          ),
+  );
+
+  Widget _employeeList(
+    BuildContext context,
+    List<Map<String, dynamic>> employees,
+  ) {
+    if (employees.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 32,
+                backgroundColor: AppTheme.sageGreen,
+                foregroundColor: AppTheme.forestGreen,
+                child: Icon(Icons.groups_outlined, size: 30),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Belum ada karyawan',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppTheme.deepGreen,
+                  fontWeight: FontWeight.w700,
                 ),
-              );
-        if (employees.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppTheme.sageGreen,
-                    foregroundColor: AppTheme.forestGreen,
-                    child: Icon(Icons.groups_outlined, size: 30),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada karyawan',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.deepGreen,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Tambahkan akun agar karyawan dapat masuk dan mengirim laporan harian.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AuthData.isSupabaseAuthEnabled
+                    ? 'Buat username dan kata sandi untuk karyawan.'
+                    : 'Tambahkan akun agar karyawan dapat masuk dan mengirim laporan harian.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+      itemCount: employees.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final employee = employees[index];
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.sageGreen,
+              foregroundColor: AppTheme.forestGreen,
+              child: Text(
+                '${employee['nama']}'.trim().characters.first.toUpperCase(),
               ),
             ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-          itemCount: employees.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final employee = employees[index];
-            return Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.sageGreen,
-                  foregroundColor: AppTheme.forestGreen,
-                  child: Text(
-                    '${employee['nama']}'.trim().characters.first.toUpperCase(),
-                  ),
-                ),
-                title: Text(
-                  '${employee['nama']}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text('${employee['email']}'),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'edit') _editEmployee(employee);
-                    if (action == 'delete') _deleteEmployee(employee);
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Hapus')),
-                  ],
-                ),
-              ),
-            );
-          },
+            title: Text(
+              '${employee['nama']}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              AuthData.isSupabaseAuthEnabled
+                  ? 'Username: ${employee['username']}'
+                  : '${employee['email']}',
+            ),
+            trailing: PopupMenuButton<String>(
+              onSelected: (action) {
+                if (action == 'edit') _editEmployee(employee);
+                if (action == 'delete') _deleteEmployee(employee);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Hapus')),
+              ],
+            ),
+          ),
         );
       },
-    ),
-  );
+    );
+  }
 }
 
 class _EmployeeFormDialog extends StatefulWidget {
@@ -170,7 +214,7 @@ class _EmployeeFormDialog extends StatefulWidget {
 class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _emailController;
+  late final TextEditingController _usernameController;
   final _passwordController = TextEditingController();
   bool _saving = false;
   String? _error;
@@ -181,15 +225,18 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
     _nameController = TextEditingController(
       text: widget.employee?['nama']?.toString() ?? '',
     );
-    _emailController = TextEditingController(
-      text: widget.employee?['email']?.toString() ?? '',
+    _usernameController = TextEditingController(
+      text:
+          widget.employee?['username']?.toString() ??
+          widget.employee?['email']?.toString() ??
+          '',
     );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -205,14 +252,17 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
       if (employee == null) {
         await AuthData.createEmployee(
           name: _nameController.text,
-          email: _emailController.text,
+          email: _usernameController.text,
           password: _passwordController.text,
+          username: AuthData.isSupabaseAuthEnabled
+              ? _usernameController.text
+              : null,
         );
       } else {
         await AuthData.updateEmployee(
           id: employee['id'] as String,
           name: _nameController.text,
-          email: _emailController.text,
+          email: _usernameController.text,
           newPassword: _passwordController.text,
         );
       }
@@ -250,11 +300,23 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
                   : null,
             ),
             TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-              validator: (value) =>
-                  AuthData.validateNameAndEmail('Nama', value ?? ''),
+              controller: _usernameController,
+              readOnly:
+                  AuthData.isSupabaseAuthEnabled && widget.employee != null,
+              keyboardType: AuthData.isSupabaseAuthEnabled
+                  ? TextInputType.text
+                  : TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: AuthData.isSupabaseAuthEnabled
+                    ? 'Username'
+                    : 'Email',
+                helperText: AuthData.isSupabaseAuthEnabled
+                    ? '3–30 karakter: huruf kecil, angka, titik, - atau _'
+                    : null,
+              ),
+              validator: (value) => AuthData.isSupabaseAuthEnabled
+                  ? AuthData.validateUsername(value ?? '')
+                  : AuthData.validateNameAndEmail('Nama', value ?? ''),
             ),
             TextFormField(
               controller: _passwordController,

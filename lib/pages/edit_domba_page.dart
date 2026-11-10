@@ -126,8 +126,12 @@ class _EditDombaPageState extends State<EditDombaPage> {
   }
 
   Future<void> saveQrToGallery() async {
-    await Permission.storage.request();
-    await Permission.photos.request();
+    if (Platform.isAndroid) {
+      await Permission.storage.request();
+    }
+    if (Platform.isAndroid || Platform.isIOS) {
+      await Permission.photos.request();
+    }
 
     Uint8List? image = await screenshotController.capture();
 

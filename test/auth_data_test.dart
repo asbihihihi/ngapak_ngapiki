@@ -41,6 +41,12 @@ void main() {
     );
   });
 
+  test('validates employee usernames without requiring an email', () {
+    expect(AuthData.validateUsername('Pak.Budi_01'), isNull);
+    expect(AuthData.validateUsername('ab'), isNotNull);
+    expect(AuthData.validateUsername('nama karyawan'), isNotNull);
+  });
+
   testWidgets('keeps the employee form open and shows duplicate email errors', (
     tester,
   ) async {
