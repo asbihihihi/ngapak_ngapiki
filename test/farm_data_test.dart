@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:ngapak_farm/auth_data.dart';
 import 'package:ngapak_farm/farm_data.dart';
 import 'package:ngapak_farm/health_data.dart';
 import 'package:ngapak_farm/operations_data.dart';
@@ -16,6 +17,8 @@ void main() {
   setUpAll(() async {
     testDirectory = await Directory.systemTemp.createTemp('ngapak-farm-test-');
     Hive.init(testDirectory.path);
+    await Hive.openBox('userBox');
+    await Hive.openBox('sessionBox');
     await Hive.openBox('dombaBox');
     await Hive.openBox('penjualanBox');
     await Hive.openBox('bobotDombaBox');
@@ -25,6 +28,16 @@ void main() {
     await Hive.openBox('keuanganBox');
     await Hive.openBox('batchBox');
     await Hive.openBox('healthRecordBox');
+  });
+
+  setUp(() async {
+    await AuthData.users.clear();
+    await AuthData.session.clear();
+    await AuthData.registerOwner(
+      name: 'Pemilik',
+      email: 'pemilik@example.com',
+      password: 'rahasia123',
+    );
   });
 
   tearDown(() async {
@@ -193,6 +206,62 @@ void main() {
     expect(FarmData.bobot, hasLength(1));
     expect(FarmData.aktivitas, hasLength(1));
   });
+
+  test(
+    'records births as new animals and deaths without deleting history',
+    () async {
+      await AuthData.createEmployee(
+        name: 'Karyawan',
+        email: 'karyawan@example.com',
+        password: 'karyawan123',
+      );
+      await AuthData.logout();
+      await AuthData.login(
+        email: 'karyawan@example.com',
+        password: 'karyawan123',
+      );
+      expect(
+        () => FarmData.addAnimal(
+          date: '2026-11-20',
+          origin: 'Pembelian',
+          kind: 'Garut',
+          sex: 'Betina',
+          initialWeight: 3.2,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      final newborn = await FarmData.recordBirth(
+        date: '2026-11-20',
+        kind: 'Garut',
+        sex: 'Betina',
+        initialWeight: 3.2,
+        note: 'Lahir sehat',
+      );
+      expect(newborn['asal'], 'Kelahiran');
+      expect(newborn['kelamin'], 'Betina');
+      expect(FarmData.domba, hasLength(1));
+      expect(FarmData.aktivitas.values.single['tipe'], 'Mutasi Kelahiran');
+
+      await FarmData.recordHealth(
+        0,
+        status: 'Sakit',
+        note: 'Nafsu makan turun',
+      );
+      expect((FarmData.domba.getAt(0) as Map)['statusKesehatan'], 'Sakit');
+
+      await FarmData.recordDeath(index: 0, date: '2026-11-21', note: 'Sakit');
+      final deceased = FarmData.domba.getAt(0) as Map;
+      expect(deceased['status'], 'mati');
+      expect(deceased['tanggalKematian'], '2026-11-21');
+      expect(FarmData.isActive(deceased), isFalse);
+      expect(FarmData.domba, hasLength(1));
+      expect(FarmData.aktivitas.values.last['tipe'], 'Mutasi Kematian');
+      await expectLater(
+        FarmData.recordHealth(0, status: 'Sehat', note: ''),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 
   test(
     'backdated weighing does not replace the chronologically latest weight',
@@ -559,6 +628,45 @@ void main() {
       throwsA(isA<StateError>()),
     );
     expect(FarmOperationsData.stockFor(id), 6);
+  });
+
+  test('employees can move stock but cannot change master goods', () async {
+    final id = await FarmOperationsData.saveGoods(
+      name: 'Obat',
+      category: 'Obat-obatan',
+      unit: 'botol',
+      minimumStock: 1,
+      openingStock: 5,
+    );
+    await AuthData.createEmployee(
+      name: 'Karyawan',
+      email: 'karyawan@example.com',
+      password: 'karyawan123',
+    );
+    await AuthData.logout();
+    await AuthData.login(
+      email: 'karyawan@example.com',
+      password: 'karyawan123',
+    );
+
+    await FarmOperationsData.moveStock(
+      operationId: 'employee-move-1',
+      itemId: id,
+      type: 'Keluar',
+      quantity: 1,
+      date: '2026-11-20',
+      note: 'Pemakaian harian',
+    );
+    expect(FarmOperationsData.stockFor(id), 4);
+    await expectLater(
+      FarmOperationsData.saveGoods(
+        name: 'Barang Baru',
+        category: 'Pakan',
+        unit: 'kg',
+        minimumStock: 0,
+      ),
+      throwsA(isA<StateError>()),
+    );
   });
 
   test(

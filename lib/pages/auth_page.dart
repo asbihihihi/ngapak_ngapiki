@@ -123,6 +123,41 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
+  Future<void> _sendPasswordResetEmail() async {
+    final email = _emailController.text.trim();
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Pemulihan memakai email akun pemilik. Karyawan dapat meminta pemilik mengatur ulang kata sandi.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      await AuthData.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tautan reset kata sandi dikirim ke $email. Periksa kotak masuk atau spam.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_messageFor(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   String _messageFor(Object error) {
     final message = error.toString();
     return message.startsWith('Bad state: ')
@@ -301,6 +336,14 @@ class _AuthPageState extends State<AuthPage> {
                                         : 'Masuk',
                                   ),
                           ),
+                          if (AuthData.isSupabaseAuthEnabled &&
+                              !_registerMode) ...[
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: _busy ? null : _sendPasswordResetEmail,
+                              child: const Text('Lupa kata sandi?'),
+                            ),
+                          ],
                           if (isFirstOwner) ...[
                             const SizedBox(height: 16),
                             Text(

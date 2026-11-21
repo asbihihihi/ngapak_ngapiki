@@ -378,7 +378,11 @@ class BatchDetailPage extends StatelessWidget {
                     subtitle: Text(
                       '${entry.value['jenis'] ?? 'Jenis tidak dicatat'} · '
                       '${FarmData.weight(entry.value).toStringAsFixed(1)} kg · '
-                      '${FarmData.isSold(entry.value) ? 'Terjual' : 'Aktif'}',
+                      '${FarmData.isSold(entry.value)
+                          ? 'Terjual'
+                          : FarmData.isDead(entry.value)
+                          ? 'Mati'
+                          : 'Aktif'}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -363,6 +363,8 @@ class _DetailDombaPageState extends State<DetailDombaPage> {
   Widget build(BuildContext context) {
     final row = Map<String, dynamic>.from(FarmData.domba.getAt(widget.index));
     final sold = FarmData.isSold(row);
+    final dead = FarmData.isDead(row);
+    final active = FarmData.isActive(row);
     final histories = FarmData.weightHistoryFor(row);
     final weightMetrics = FarmData.weightMetricsFor(row);
     final validWeights = FarmData.weightTrendFor(row);
@@ -414,7 +416,16 @@ class _DetailDombaPageState extends State<DetailDombaPage> {
             'Bobot Terakhir',
             '${row['bobotTerakhir'] ?? row['berat'] ?? '-'} KG',
           ),
-          field('Status', sold ? 'TERJUAL' : 'AKTIF'),
+          field(
+            'Status',
+            sold
+                ? 'TERJUAL'
+                : dead
+                ? 'MATI'
+                : 'AKTIF',
+          ),
+          if (dead)
+            field('Tanggal kematian', '${row['tanggalKematian'] ?? '-'}'),
           if ('${row['statusKesehatan'] ?? ''}'.isNotEmpty)
             field('Catatan kesehatan terakhir', '${row['statusKesehatan']}'),
           if (sold) ...[
@@ -426,7 +437,7 @@ class _DetailDombaPageState extends State<DetailDombaPage> {
             field('Harga', 'Rp ${row['hargaJual'] ?? '-'}'),
             field('Tujuan', '${row['tujuan'] ?? row['asalPembeli'] ?? '-'}'),
           ],
-          if (!sold)
+          if (active)
             Wrap(
               spacing: 8,
               children: [

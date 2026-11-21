@@ -47,6 +47,36 @@ void main() {
     expect(AuthData.validateUsername('nama karyawan'), isNotNull);
   });
 
+  test('owner can grant and revoke an employee POS access', () async {
+    await AuthData.registerOwner(
+      name: 'Pemilik Farm',
+      email: 'pemilik@example.com',
+      password: 'rahasia123',
+    );
+    await AuthData.createEmployee(
+      name: 'Kasir',
+      email: 'kasir@example.com',
+      password: 'kasir1234',
+    );
+    final employeeId = (await AuthData.employeeList()).single['id'] as String;
+
+    await AuthData.updateEmployee(
+      id: employeeId,
+      name: 'Kasir',
+      email: 'kasir@example.com',
+      canUsePos: true,
+    );
+    expect((await AuthData.employeeList()).single['canUsePos'], isTrue);
+
+    await AuthData.updateEmployee(
+      id: employeeId,
+      name: 'Kasir',
+      email: 'kasir@example.com',
+      canUsePos: false,
+    );
+    expect((await AuthData.employeeList()).single['canUsePos'], isFalse);
+  });
+
   testWidgets('keeps the employee form open and shows duplicate email errors', (
     tester,
   ) async {

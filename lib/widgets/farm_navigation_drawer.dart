@@ -120,6 +120,17 @@ class FarmNavigationDrawer extends StatelessWidget {
       icon: Icons.grid_view_rounded,
     ),
     FarmNavigationItem(
+      id: 'animals',
+      label: 'Stok Kambing',
+      icon: Icons.pets_outlined,
+      section: 'OPERASIONAL',
+    ),
+    FarmNavigationItem(
+      id: 'warehouse',
+      label: 'Gudang',
+      icon: Icons.warehouse_outlined,
+    ),
+    FarmNavigationItem(
       id: 'pos',
       label: 'Penjualan / POS',
       icon: Icons.point_of_sale_outlined,
@@ -140,7 +151,11 @@ class FarmNavigationDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = isOwner ? ownerItems : employeeItems;
+    final items = isOwner
+        ? ownerItems
+        : employeeItems
+              .where((item) => item.id != 'pos' || user['canUsePos'] == true)
+              .toList();
     return Drawer(
       width: 310,
       backgroundColor: AppTheme.warmCream,

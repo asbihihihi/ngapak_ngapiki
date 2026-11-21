@@ -71,6 +71,7 @@ Deno.serve(async (request: Request) => {
           ? body.username.trim().toLowerCase()
           : '';
       const password = typeof body.password === 'string' ? body.password : '';
+      const canUsePos = body.can_use_pos === true;
       if (!name) return jsonResponse({ error: 'Name is required.' }, 400);
       if (!/^[a-z0-9._-]{3,30}$/.test(username)) {
         return jsonResponse({
@@ -110,7 +111,7 @@ Deno.serve(async (request: Request) => {
       const employeeId = created.user.id;
       const { error: saveError } = await adminClient
         .from('profiles')
-        .update({ full_name: name, username })
+        .update({ full_name: name, username, can_use_pos: canUsePos })
         .eq('id', employeeId);
       if (saveError) {
         await adminClient.auth.admin.deleteUser(employeeId);
@@ -156,6 +157,8 @@ Deno.serve(async (request: Request) => {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       const password =
         typeof body.password === 'string' ? body.password : '';
+      const canUsePos =
+        typeof body.can_use_pos === 'boolean' ? body.can_use_pos : null;
       if (!name) return jsonResponse({ error: 'Name is required.' }, 400);
       if (password.length > 0 && password.length < 8) {
         return jsonResponse({ error: 'Password must be at least 8 characters.' }, 400);
@@ -169,7 +172,10 @@ Deno.serve(async (request: Request) => {
       if (updateAuthError) throw updateAuthError;
       const { error: updateProfileError } = await adminClient
         .from('profiles')
-        .update({ full_name: name })
+        .update({
+          full_name: name,
+          ...(canUsePos == null ? {} : { can_use_pos: canUsePos }),
+        })
         .eq('id', employeeId);
       if (updateProfileError) throw updateProfileError;
       return jsonResponse({ id: employeeId });

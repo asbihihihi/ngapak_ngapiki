@@ -5,7 +5,9 @@ import '../money_format.dart';
 import '../operations_data.dart';
 
 class GudangPage extends StatefulWidget {
-  const GudangPage({super.key});
+  const GudangPage({super.key, this.employeeMode = false});
+
+  final bool employeeMode;
 
   @override
   State<GudangPage> createState() => _GudangPageState();
@@ -27,13 +29,14 @@ class _GudangPageState extends State<GudangPage> {
     final movements = FarmOperationsData.movements;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manajemen Gudang'),
+        title: Text(widget.employeeMode ? 'Gudang' : 'Manajemen Gudang'),
         actions: [
-          IconButton(
-            tooltip: 'Tambah barang',
-            onPressed: () => _editItem(context),
-            icon: const Icon(Icons.add),
-          ),
+          if (!widget.employeeMode)
+            IconButton(
+              tooltip: 'Tambah barang',
+              onPressed: () => _editItem(context),
+              icon: const Icon(Icons.add),
+            ),
         ],
       ),
       body: ValueListenableBuilder(
@@ -118,11 +121,13 @@ class _GudangPageState extends State<GudangPage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _editItem(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah barang'),
-      ),
+      floatingActionButton: widget.employeeMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _editItem(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah barang'),
+            ),
     );
   }
 
@@ -162,10 +167,14 @@ class _GudangPageState extends State<GudangPage> {
             if (action == 'in') _moveStock(context, item, 'Masuk');
             if (action == 'out') _moveStock(context, item, 'Keluar');
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'in', child: Text('Catat stok masuk')),
-            PopupMenuItem(value: 'out', child: Text('Catat stok keluar')),
-            PopupMenuItem(value: 'edit', child: Text('Edit data barang')),
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'in', child: Text('Catat stok masuk')),
+            const PopupMenuItem(value: 'out', child: Text('Catat stok keluar')),
+            if (!widget.employeeMode)
+              const PopupMenuItem(
+                value: 'edit',
+                child: Text('Edit data barang'),
+              ),
           ],
         ),
       ),
@@ -176,6 +185,7 @@ class _GudangPageState extends State<GudangPage> {
     BuildContext context, {
     Map<String, dynamic>? item,
   }) async {
+    if (widget.employeeMode) return;
     final name = TextEditingController(text: item?['nama'] ?? '');
     final unit = TextEditingController(text: item?['satuan'] ?? 'kg');
     final minimum = TextEditingController(
@@ -257,12 +267,11 @@ class _GudangPageState extends State<GudangPage> {
                       ),
                       validator: (value) {
                         if ((double.tryParse(
-                                  opening.text.replaceAll(',', '.'),
-                                ) ??
-                                0) >
+                                      opening.text.replaceAll(',', '.'),
+                                    ) ??
+                                    0) >
                                 0 &&
-                            (FarmOperationsData.parseMoney(value ?? '') ??
-                                    0) <=
+                            (FarmOperationsData.parseMoney(value ?? '') ?? 0) <=
                                 0) {
                           return 'Harga beli diperlukan jika stok awal diisi.';
                         }
@@ -414,6 +423,28 @@ class _GudangPageState extends State<GudangPage> {
                 Text(
                   'Batas minimum: ${item['batasMinimum']} ${item['satuan']}',
                 ),
+                if (widget.employeeMode) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _moveStock(context, item, 'Masuk'),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Stok Masuk'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _moveStock(context, item, 'Keluar'),
+                          icon: const Icon(Icons.remove),
+                          label: const Text('Stok Keluar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const Divider(),
                 const Text(
                   'Riwayat pergerakan',

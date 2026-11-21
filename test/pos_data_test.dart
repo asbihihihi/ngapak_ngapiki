@@ -52,6 +52,7 @@ void main() {
       name: 'Kasir',
       email: 'kasir@example.com',
       password: 'karyawan123',
+      canUsePos: true,
     );
     await AuthData.logout();
     await AuthData.login(email: 'kasir@example.com', password: 'karyawan123');
@@ -130,6 +131,36 @@ void main() {
       expect(PosData.ledger.containsKey(saleId), isTrue);
     },
   );
+
+  test('employee without POS permission cannot complete a sale', () async {
+    final productId = await PosData.saveProduct(
+      name: 'Daging',
+      description: '',
+      pricePerKg: 100000,
+      openingStockKg: 3,
+    );
+    await AuthData.createEmployee(
+      name: 'Karyawan',
+      email: 'karyawan@example.com',
+      password: 'karyawan123',
+    );
+    await AuthData.logout();
+    await AuthData.login(
+      email: 'karyawan@example.com',
+      password: 'karyawan123',
+    );
+
+    await expectLater(
+      PosData.checkout(
+        quantitiesKg: {productId: 1},
+        paymentMethod: 'Cash',
+        paidAmount: 100000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(PosData.sales, isEmpty);
+    expect((PosData.products.get(productId) as Map)['stokKg'], 3);
+  });
 
   test('checkout rejects insufficient stock without creating a sale', () async {
     final productId = await PosData.saveProduct(

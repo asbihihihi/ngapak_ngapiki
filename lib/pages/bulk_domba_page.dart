@@ -235,8 +235,9 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
         final all = <MapEntry<int, Map<String, dynamic>>>[];
         for (var i = 0; i < box.length; i++) {
           final row = Map<String, dynamic>.from(box.getAt(i));
-          if (status == 'Aktif' && FarmData.isSold(row) ||
-              status == 'Terjual' && !FarmData.isSold(row))
+          if (status == 'Aktif' && !FarmData.isActive(row) ||
+              status == 'Terjual' && !FarmData.isSold(row) ||
+              status == 'Mati' && !FarmData.isDead(row))
             continue;
           if (batch != 'Semua' && row['batchId'] != batch) continue;
           if (!'${row['kode']} ${row['qrCode']} ${row['jenis']} ${row['asal']}'
@@ -269,7 +270,7 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
                         child: DropdownButton<String>(
                           isExpanded: true,
                           value: status,
-                          items: ['Semua', 'Aktif', 'Terjual']
+                          items: ['Semua', 'Aktif', 'Terjual', 'Mati']
                               .map(
                                 (v) => DropdownMenuItem(
                                   value: v,
@@ -318,7 +319,7 @@ class _BulkDombaPageState extends State<BulkDombaPage> {
                   for (final e in all)
                     Builder(
                       builder: (context) {
-                        final canSelect = !FarmData.isSold(e.value);
+                        final canSelect = FarmData.isActive(e.value);
                         final checked = selected.contains(e.key);
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -529,7 +530,7 @@ class _BulkActivityPageState extends State<BulkActivityPage> {
   Future<void> save() async {
     if (name.text.trim().isEmpty) return;
     for (final i in widget.indices) {
-      if (!FarmData.isSold(FarmData.domba.getAt(i)))
+      if (FarmData.isActive(FarmData.domba.getAt(i)))
         await FarmData.recordActivity(
           i,
           tipe: widget.type,

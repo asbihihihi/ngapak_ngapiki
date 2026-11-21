@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:hive/hive.dart';
 
+import 'auth_data.dart';
 import 'farm_sync_service.dart';
 import 'money_format.dart';
 
@@ -28,6 +29,19 @@ class FarmData {
   static final bobot = Hive.box('bobotDombaBox');
   static final aktivitas = Hive.box('aktivitasDombaBox');
   static final penjualan = Hive.box('penjualanBox');
+
+  static void _requireFarmUser() {
+    final role = AuthData.currentUser?['role'];
+    if (!const {AuthData.ownerRole, AuthData.employeeRole}.contains(role)) {
+      throw StateError('Masuk ke akun peternakan untuk mencatat kegiatan.');
+    }
+  }
+
+  static void _requireOwner() {
+    if (AuthData.currentUser?['role'] != AuthData.ownerRole) {
+      throw StateError('Hanya pemilik yang dapat mengubah data master.');
+    }
+  }
 
   /// Reads both current transaction records and the older one-row-per-animal
   /// records written by the original sale form.
@@ -384,18 +398,44 @@ class FarmData {
     String purchasePrice = '',
     String note = '',
     String photoPath = '',
-  }) => _withAnimalLock(
-    () => _addAnimalNow(
-      date: date,
-      origin: origin,
-      kind: kind,
-      sex: sex,
-      initialWeight: initialWeight,
-      purchasePrice: purchasePrice,
-      note: note,
-      photoPath: photoPath,
-    ),
-  );
+  }) {
+    _requireOwner();
+    return _withAnimalLock(
+      () => _addAnimalNow(
+        date: date,
+        origin: origin,
+        kind: kind,
+        sex: sex,
+        initialWeight: initialWeight,
+        purchasePrice: purchasePrice,
+        note: note,
+        photoPath: photoPath,
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> recordBirth({
+    required String date,
+    required String kind,
+    required String sex,
+    required double initialWeight,
+    String note = '',
+  }) {
+    _requireFarmUser();
+    return _withAnimalLock(
+      () => _addAnimalNow(
+        date: date,
+        origin: 'Kelahiran',
+        kind: kind,
+        sex: sex,
+        initialWeight: initialWeight,
+        purchasePrice: '',
+        note: note,
+        photoPath: '',
+        mutationType: 'Mutasi Kelahiran',
+      ),
+    );
+  }
 
   static Future<Map<String, dynamic>> _addAnimalNow({
     required String date,
@@ -406,6 +446,7 @@ class FarmData {
     required String purchasePrice,
     required String note,
     required String photoPath,
+    String? mutationType,
   }) async {
     if (origin.trim().isEmpty ||
         kind.trim().isEmpty ||
@@ -456,6 +497,7 @@ class FarmData {
         ? key.toString()
         : 'animal-$code';
     dynamic weightKey;
+    dynamic activityKey;
     var expenseWritten = false;
     try {
       await domba.put(key, row);
@@ -468,6 +510,18 @@ class FarmData {
         'bobot': initialWeight,
         'catatan': 'Bobot awal',
       });
+      if (mutationType != null) {
+        activityKey = await aktivitas.add({
+          'id': 'MUT-${now.microsecondsSinceEpoch}',
+          'dombaId': row['id'],
+          'kode': code,
+          'tipe': mutationType,
+          'tanggal': intakeDate,
+          'waktuPencatatan': now.toIso8601String(),
+          'nama': kind.trim(),
+          'catatan': note.trim(),
+        });
+      }
       if (parsedPrice != null && parsedPrice > 0) {
         await finance.put(expenseId, {
           'id': expenseId,
@@ -483,6 +537,7 @@ class FarmData {
       }
       return row;
     } catch (_) {
+      if (activityKey != null) await aktivitas.delete(activityKey);
       await domba.delete(key);
       if (weightKey != null) await bobot.delete(weightKey);
       if (expenseWritten && finance.containsKey(expenseId)) {
@@ -495,6 +550,9 @@ class FarmData {
   static String qrFor(String code) => 'NGK-$code';
   static bool isSold(dynamic row) =>
       (row['status'] ?? 'aktif').toString().toLowerCase() == 'terjual';
+  static bool isDead(dynamic row) =>
+      (row['status'] ?? '').toString().toLowerCase() == 'mati';
+  static bool isActive(dynamic row) => !isSold(row) && !isDead(row);
   static double weight(dynamic row) =>
       double.tryParse(
         (row['bobotTerakhir'] ?? row['berat'] ?? '').toString(),
@@ -632,6 +690,7 @@ class FarmData {
   static Future<void> recordWeights(
     List<AnimalWeightEntry> entries,
   ) => _withAnimalLock(() async {
+    _requireOwner();
     if (entries.isEmpty ||
         entries.map((entry) => entry.index).toSet().length != entries.length) {
       throw ArgumentError('Pilih kambing yang valid untuk ditimbang.');
@@ -667,8 +726,8 @@ class FarmData {
         );
       }
       final before = Map<String, dynamic>.from(domba.getAt(entry.index));
-      if (isSold(before)) {
-        throw StateError('Bobot kambing terjual tidak dapat diubah.');
+      if (!isActive(before)) {
+        throw StateError('Bobot kambing nonaktif tidak dapat diubah.');
       }
       if ('${before['id'] ?? ''}'.trim().isEmpty) {
         throw StateError('ID kambing tidak tersedia untuk mengaitkan riwayat.');
@@ -784,13 +843,14 @@ class FarmData {
     required String status,
     required String note,
   }) async {
+    _requireFarmUser();
     final normalized = status.trim();
     if (normalized.isEmpty) {
       throw ArgumentError('Status kesehatan wajib dipilih.');
     }
     final row = Map<String, dynamic>.from(domba.getAt(index));
-    if (isSold(row)) {
-      throw StateError('Data kesehatan kambing terjual tidak dapat diubah.');
+    if (!isActive(row)) {
+      throw StateError('Data kesehatan kambing nonaktif tidak dapat diubah.');
     }
     final eventId = 'HEALTH-${DateTime.now().microsecondsSinceEpoch}';
     final eventKey = await aktivitas.add({
@@ -819,6 +879,48 @@ class FarmData {
     }
   }
 
+  static Future<void> recordDeath({
+    required int index,
+    required String date,
+    String note = '',
+  }) => _withAnimalLock(() async {
+    _requireFarmUser();
+    final parsedDate = DateTime.tryParse(date.trim());
+    if (index < 0 ||
+        index >= domba.length ||
+        parsedDate == null ||
+        parsedDate.isAfter(DateTime.now())) {
+      throw ArgumentError('Pilih kambing dan tanggal kematian yang valid.');
+    }
+    final before = Map<String, dynamic>.from(domba.getAt(index));
+    if (isSold(before)) {
+      throw StateError('Kambing yang sudah terjual tidak dapat dimutasi.');
+    }
+    if (isDead(before)) throw StateError('Kambing ini sudah tercatat mati.');
+    final now = DateTime.now();
+    final row = Map<String, dynamic>.from(before)
+      ..['status'] = 'mati'
+      ..['tanggalKematian'] = date.trim()
+      ..['catatanKematian'] = note.trim();
+    dynamic activityKey;
+    try {
+      activityKey = await aktivitas.add({
+        'id': 'MUT-${now.microsecondsSinceEpoch}',
+        'dombaId': row['id'],
+        'kode': row['kode'],
+        'tipe': 'Mutasi Kematian',
+        'tanggal': date.trim(),
+        'waktuPencatatan': now.toIso8601String(),
+        'nama': 'Kematian',
+        'catatan': note.trim(),
+      });
+      await domba.putAt(index, row);
+    } catch (_) {
+      if (activityKey != null) await aktivitas.delete(activityKey);
+      rethrow;
+    }
+  });
+
   static Future<void> updateAnimal({
     required int index,
     required String date,
@@ -829,6 +931,7 @@ class FarmData {
     required String note,
     String? sex,
   }) async {
+    _requireOwner();
     if (index < 0 ||
         index >= domba.length ||
         date.trim().isEmpty ||
@@ -848,7 +951,8 @@ class FarmData {
       throw ArgumentError('Harga beli domba tidak valid.');
     }
     final row = Map<String, dynamic>.from(domba.getAt(index));
-    if (isSold(row)) throw StateError('Kambing terjual tidak dapat diedit.');
+    if (!isActive(row))
+      throw StateError('Kambing nonaktif tidak dapat diedit.');
     dynamic historyKey;
     if (weightValue != weight(row)) {
       final recordedAt = DateTime.now();
@@ -925,6 +1029,7 @@ class FarmData {
     required String pricingMode,
     required Map<String, dynamic> metadata,
   }) async {
+    _requireOwner();
     if (indices.isEmpty || indices.toSet().length != indices.length) {
       throw ArgumentError('Pilih kambing yang valid untuk dijual.');
     }
@@ -939,8 +1044,8 @@ class FarmData {
         throw ArgumentError('Data kambing tidak ditemukan.');
       }
       final row = Map<String, dynamic>.from(domba.getAt(index));
-      if (isSold(row)) {
-        throw StateError('Kambing ${row['kode']} sudah terjual.');
+      if (!isActive(row)) {
+        throw StateError('Kambing ${row['kode']} tidak lagi aktif.');
       }
       if ('${row['id'] ?? ''}'.isEmpty || '${row['kode'] ?? ''}'.isEmpty) {
         throw StateError('Identitas kambing tidak valid.');
@@ -1100,7 +1205,7 @@ class FarmData {
     var totalWeight = 0.0;
     for (final index in indices) {
       final row = Map<String, dynamic>.from(domba.getAt(index));
-      if (isSold(row)) continue;
+      if (!isActive(row)) continue;
       final weightValue = weights[index] ?? weight(row);
       await recordWeight(index, weightValue, 'Bobot saat dijual', date: date);
       row.addAll({

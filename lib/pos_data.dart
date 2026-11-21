@@ -13,6 +13,7 @@ class PosData {
 
   static bool get isOwner =>
       AuthData.currentUser?['role'] == AuthData.ownerRole;
+  static bool get canUsePos => AuthData.canUsePos;
 
   static Future<T> _withSaleLock<T>(Future<T> Function() operation) {
     final result = Completer<T>();
@@ -55,16 +56,15 @@ class PosData {
     required double pricePerKg,
     double openingStockKg = 0,
   }) async {
-    if (!isOwner) throw StateError('Hanya pemilik yang dapat mengelola produk.');
+    if (!isOwner)
+      throw StateError('Hanya pemilik yang dapat mengelola produk.');
     final normalizedName = name.trim();
     if (normalizedName.isEmpty ||
         !pricePerKg.isFinite ||
         pricePerKg <= 0 ||
         !openingStockKg.isFinite ||
         openingStockKg < 0) {
-      throw ArgumentError(
-        'Nama, harga per kg, dan stok produk harus valid.',
-      );
+      throw ArgumentError('Nama, harga per kg, dan stok produk harus valid.');
     }
     if (id != null && !products.containsKey(id)) {
       throw StateError('Produk tidak ditemukan.');
@@ -87,7 +87,8 @@ class PosData {
   }
 
   static Future<void> deleteProduct(String id) async {
-    if (!isOwner) throw StateError('Hanya pemilik yang dapat mengelola produk.');
+    if (!isOwner)
+      throw StateError('Hanya pemilik yang dapat mengelola produk.');
     if (!products.containsKey(id)) throw StateError('Produk tidak ditemukan.');
     final product = Map<String, dynamic>.from(products.get(id));
     product['aktif'] = false;
@@ -96,7 +97,8 @@ class PosData {
   }
 
   static Future<void> addStock(String id, double quantityKg) async {
-    if (!isOwner) throw StateError('Hanya pemilik yang dapat mengelola produk.');
+    if (!isOwner)
+      throw StateError('Hanya pemilik yang dapat mengelola produk.');
     if (!quantityKg.isFinite || quantityKg <= 0) {
       throw ArgumentError('Jumlah stok tambahan harus lebih dari nol.');
     }
@@ -132,10 +134,14 @@ class PosData {
   }) async {
     final user = AuthData.currentUser;
     if (user == null ||
-        !const {AuthData.ownerRole, AuthData.employeeRole}.contains(
-          user['role'],
-        )) {
+        !const {
+          AuthData.ownerRole,
+          AuthData.employeeRole,
+        }.contains(user['role'])) {
       throw StateError('Masuk ke akun pemilik atau karyawan untuk berjualan.');
+    }
+    if (!canUsePos) {
+      throw StateError('Akun ini belum diberi akses kasir POS oleh pemilik.');
     }
     if (quantitiesKg.isEmpty ||
         !const {'Cash', 'QRIS'}.contains(paymentMethod)) {
@@ -211,7 +217,8 @@ class PosData {
         final product = Map<String, dynamic>.from(
           productSnapshots[item['produkId']]!,
         );
-        product['stokKg'] = _number(product['stokKg']) - _number(item['beratKg']);
+        product['stokKg'] =
+            _number(product['stokKg']) - _number(item['beratKg']);
         product['diperbaruiPada'] = saleDate;
         await products.put('${item['produkId']}', product);
       }

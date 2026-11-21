@@ -74,7 +74,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
 
             style: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
-              fontSize: 28,
+              fontSize: 22,
               color: AppTheme.deepGreen,
             ),
           ),
@@ -108,15 +108,16 @@ class _DataDombaPageState extends State<DataDombaPage> {
                 bobot.contains(searchText);
           }).toList();
 
-          final totalAktif = searchedDomba
-              .where((item) => !FarmData.isSold(item))
-              .length;
+          final totalAktif = searchedDomba.where(FarmData.isActive).length;
           final totalTerjual = searchedDomba.where(FarmData.isSold).length;
+          final totalMati = searchedDomba.where(FarmData.isDead).length;
           final dataDomba = searchedDomba
               .where(
-                (item) => statusFilter == 'Terjual'
-                    ? FarmData.isSold(item)
-                    : !FarmData.isSold(item),
+                (item) => switch (statusFilter) {
+                  'Terjual' => FarmData.isSold(item),
+                  'Mati' => FarmData.isDead(item),
+                  _ => FarmData.isActive(item),
+                },
               )
               .toList();
 
@@ -228,9 +229,25 @@ class _DataDombaPageState extends State<DataDombaPage> {
                               ),
                             ),
                           ),
-
-                          const SizedBox(width: 15),
-
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() {
+                                statusFilter = 'Mati';
+                              }),
+                              child: SizedBox(
+                                height: 150,
+                                child: statCard(
+                                  "Mati",
+                                  "$totalMati",
+                                  Icons.remove_circle_outline,
+                                  Colors.blueGrey,
+                                  selected: statusFilter == 'Mati',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: GestureDetector(
                               onTap: () => setState(() {
@@ -296,6 +313,7 @@ class _DataDombaPageState extends State<DataDombaPage> {
                             final item = dataDomba[index];
 
                             final isTerjual = FarmData.isSold(item);
+                            final isMati = FarmData.isDead(item);
 
                             return GestureDetector(
                               onTap: () {
@@ -402,6 +420,8 @@ class _DataDombaPageState extends State<DataDombaPage> {
                                                 decoration: BoxDecoration(
                                                   color: isTerjual
                                                       ? const Color(0xFFF8E9E6)
+                                                      : isMati
+                                                      ? Colors.blueGrey.shade100
                                                       : AppTheme.sageGreen,
 
                                                   borderRadius:
@@ -411,6 +431,8 @@ class _DataDombaPageState extends State<DataDombaPage> {
                                                 child: Text(
                                                   isTerjual
                                                       ? "Terjual"
+                                                      : isMati
+                                                      ? "Mati"
                                                       : "Aktif",
 
                                                   style: GoogleFonts.inter(
@@ -418,6 +440,8 @@ class _DataDombaPageState extends State<DataDombaPage> {
                                                         ? const Color(
                                                             0xFFB5473B,
                                                           )
+                                                        : isMati
+                                                        ? Colors.blueGrey
                                                         : AppTheme.forestGreen,
                                                     fontWeight: FontWeight.w600,
                                                   ),

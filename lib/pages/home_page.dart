@@ -15,6 +15,7 @@ import 'akun_page.dart';
 import 'auth_page.dart';
 import 'bulk_domba_page.dart';
 import 'data_domba_page.dart';
+import 'employee_livestock_page.dart';
 import 'gudang_page.dart';
 import 'keuangan_page.dart';
 import 'pos_page.dart';
@@ -33,6 +34,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String _employeeTab = 'dashboard';
+
   @override
   void initState() {
     super.initState();
@@ -61,17 +64,24 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _navigate(String id, bool isOwner) async {
     if (id == 'dashboard') return;
+    if (!isOwner &&
+        const {'animals', 'warehouse', 'pos', 'account'}.contains(id)) {
+      if (id == 'pos' && !AuthData.canUsePos) return;
+      setState(() => _employeeTab = id);
+      return;
+    }
     final Widget? page = switch (id) {
-      'animals' => const DataDombaPage(),
-      'qr-scanner' => const QrScannerPage(),
-      'batch' => const BatchManagementPage(),
-      'weight' => const WeightManagementPage(),
-      'health' => const HealthManagementPage(),
-      'activity' => const BulkDombaPage(),
-      'livestock-sales' => const BulkDombaPage(salesOnly: true),
-      'pos' => const PosPage(),
-      'warehouse' => const GudangPage(),
-      'finance' => const KeuanganPage(),
+      'animals' =>
+        isOwner ? const DataDombaPage() : const EmployeeLivestockPage(),
+      'qr-scanner' when isOwner => const QrScannerPage(),
+      'batch' when isOwner => const BatchManagementPage(),
+      'weight' when isOwner => const WeightManagementPage(),
+      'health' when isOwner => const HealthManagementPage(),
+      'activity' when isOwner => const BulkDombaPage(),
+      'livestock-sales' when isOwner => const BulkDombaPage(salesOnly: true),
+      'pos' when isOwner || AuthData.canUsePos => const PosPage(),
+      'warehouse' => GudangPage(employeeMode: !isOwner),
+      'finance' when isOwner => const KeuanganPage(),
       'statistics' when isOwner => const StatistikPage(),
       'reports' when isOwner => const OwnerReportsPage(),
       'employees' when isOwner => const EmployeeManagementPage(),
@@ -90,6 +100,17 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = AuthData.currentUser ?? <String, dynamic>{};
     final isOwner = user['role'] == AuthData.ownerRole;
+    final employeeTabs = <({String id, String label, IconData icon})>[
+      (id: 'dashboard', label: 'Dashboard', icon: Icons.grid_view_rounded),
+      (id: 'animals', label: 'Kambing', icon: Icons.pets_outlined),
+      (id: 'warehouse', label: 'Gudang', icon: Icons.warehouse_outlined),
+      if (AuthData.canUsePos)
+        (id: 'pos', label: 'POS', icon: Icons.point_of_sale_outlined),
+      (id: 'account', label: 'Akun', icon: Icons.person_outline),
+    ];
+    final employeeTab = employeeTabs.any((tab) => tab.id == _employeeTab)
+        ? _employeeTab
+        : 'dashboard';
     final boxes = <Box>[
       Hive.box('dombaBox'),
       Hive.box('bobotDombaBox'),
@@ -105,23 +126,27 @@ class _HomePageState extends State<HomePage> {
       ),
       builder: (context, _) => Scaffold(
         backgroundColor: AppTheme.warmCream,
-        appBar: AppBar(
-          title: Text(isOwner ? 'Ringkasan peternakan' : 'Ruang kerja'),
-          actions: [
-            if (isOwner)
-              _NotificationButton(
-                count: AuthData.unreadReportCount,
-                onPressed: () => _navigate('reports', isOwner),
-              ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        drawer: FarmNavigationDrawer(
-          user: user,
-          isOwner: isOwner,
-          onSelected: (id) => _navigate(id, isOwner),
-          onLogout: () => logoutToLogin(context),
-        ),
+        appBar: isOwner || employeeTab == 'dashboard'
+            ? AppBar(
+                title: Text(isOwner ? 'Ringkasan peternakan' : 'Ruang kerja'),
+                actions: [
+                  if (isOwner)
+                    _NotificationButton(
+                      count: AuthData.unreadReportCount,
+                      onPressed: () => _navigate('reports', isOwner),
+                    ),
+                  const SizedBox(width: 8),
+                ],
+              )
+            : null,
+        drawer: isOwner
+            ? FarmNavigationDrawer(
+                user: user,
+                isOwner: true,
+                onSelected: (id) => _navigate(id, true),
+                onLogout: () => logoutToLogin(context),
+              )
+            : null,
         body: Column(
           children: [
             ValueListenableBuilder<String>(
@@ -156,17 +181,44 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             Expanded(
-              child: isOwner ? _ownerDashboard(user) : _employeeDashboard(user),
+              child: isOwner
+                  ? _ownerDashboard(user)
+                  : _employeePage(user, employeeTab),
             ),
           ],
         ),
+        bottomNavigationBar: isOwner
+            ? null
+            : NavigationBar(
+                selectedIndex: employeeTabs.indexWhere(
+                  (tab) => tab.id == employeeTab,
+                ),
+                onDestinationSelected: (index) {
+                  setState(() => _employeeTab = employeeTabs[index].id);
+                },
+                destinations: [
+                  for (final tab in employeeTabs)
+                    NavigationDestination(
+                      icon: Icon(tab.icon),
+                      label: tab.label,
+                    ),
+                ],
+              ),
       ),
     );
   }
 
+  Widget _employeePage(Map<String, dynamic> user, String tab) => switch (tab) {
+    'animals' => const EmployeeLivestockPage(),
+    'warehouse' => const GudangPage(employeeMode: true),
+    'pos' when AuthData.canUsePos => const PosPage(),
+    'account' => const AkunPage(),
+    _ => _employeeDashboard(user),
+  };
+
   Widget _ownerDashboard(Map<String, dynamic> user) {
     final animals = Hive.box('dombaBox').values.map(_asMap).toList();
-    final active = animals.where((row) => !FarmData.isSold(row)).toList();
+    final active = animals.where(FarmData.isActive).toList();
     final sold = animals.where(FarmData.isSold).length;
     final totalWeight = active.fold<double>(
       0,
@@ -306,11 +358,27 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 13),
         _ActionCard(
-          icon: Icons.point_of_sale_outlined,
-          title: 'Penjualan / POS',
-          subtitle: 'Layani transaksi produk peternakan',
-          onTap: () => _navigate('pos', false),
+          icon: Icons.pets_outlined,
+          title: 'Stok Kambing',
+          subtitle: 'Perbarui kondisi dan catat mutasi ternak',
+          onTap: () => _navigate('animals', false),
         ),
+        const SizedBox(height: 10),
+        _ActionCard(
+          icon: Icons.warehouse_outlined,
+          title: 'Gudang',
+          subtitle: 'Catat stok barang masuk dan keluar',
+          onTap: () => _navigate('warehouse', false),
+        ),
+        if (AuthData.canUsePos) ...[
+          const SizedBox(height: 10),
+          _ActionCard(
+            icon: Icons.point_of_sale_outlined,
+            title: 'Penjualan / POS',
+            subtitle: 'Layani transaksi produk peternakan',
+            onTap: () => _navigate('pos', false),
+          ),
+        ],
         const SizedBox(height: 10),
         _ActionCard(
           icon: Icons.assignment_outlined,

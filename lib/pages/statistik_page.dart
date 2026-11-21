@@ -98,7 +98,7 @@ class _StatistikPageState extends State<StatistikPage>
     final today = DateTime(now.year, now.month, now.day);
     final animals = FarmData.domba.values
         .map((raw) => Map<String, dynamic>.from(raw as Map))
-        .where((animal) => !FarmData.isSold(animal))
+        .where(FarmData.isActive)
         .toList();
     final finance = FarmOperationsData.financeSummary();
     final meatStockKg = PosData.products.values.fold<double>(0, (total, raw) {

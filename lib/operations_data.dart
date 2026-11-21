@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'farm_sync_service.dart';
 import 'farm_data.dart';
 import 'money_format.dart';
+import 'auth_data.dart';
 
 /// Storage operations for inventory and the non-sale financial ledger.
 /// Sales are read from penjualanBox so sale income cannot be entered twice.
@@ -14,6 +15,15 @@ class FarmOperationsData {
   static Box get goods => Hive.box('barangBox');
   static Box get movements => Hive.box('pergerakanGudangBox');
   static Box get ledger => Hive.box('keuanganBox');
+  static bool get _isOwner =>
+      AuthData.currentUser?['role'] == AuthData.ownerRole;
+
+  static void _requireFarmUser() {
+    final role = AuthData.currentUser?['role'];
+    if (!const {AuthData.ownerRole, AuthData.employeeRole}.contains(role)) {
+      throw StateError('Masuk ke akun peternakan untuk mencatat stok.');
+    }
+  }
 
   static String nextGoodsId() {
     var number = 1;
@@ -70,6 +80,9 @@ class FarmOperationsData {
     required double openingStock,
     required double? purchasePrice,
   }) async {
+    if (!_isOwner) {
+      throw StateError('Hanya pemilik yang dapat mengelola data barang.');
+    }
     final normalizedName = name.trim();
     final normalizedUnit = unit.trim();
     if (normalizedName.isEmpty ||
@@ -207,6 +220,7 @@ class FarmOperationsData {
     required String date,
     required String note,
   }) async {
+    _requireFarmUser();
     if (operationId.trim().isEmpty) {
       throw ArgumentError('ID pergerakan stok wajib diisi.');
     }
@@ -241,6 +255,7 @@ class FarmOperationsData {
     required String note,
     String staff = '',
   }) => _withStockLock(() async {
+    _requireFarmUser();
     if (animalIndex < 0 || animalIndex >= FarmData.domba.length) {
       throw ArgumentError('Data domba tidak ditemukan.');
     }
@@ -251,8 +266,8 @@ class FarmOperationsData {
       throw ArgumentError('Jumlah barang dan tanggal harus valid.');
     }
     final animal = Map<String, dynamic>.from(FarmData.domba.getAt(animalIndex));
-    if (FarmData.isSold(animal)) {
-      throw StateError('Aktivitas kambing terjual tidak dapat diubah.');
+    if (!FarmData.isActive(animal)) {
+      throw StateError('Aktivitas kambing nonaktif tidak dapat diubah.');
     }
     final item = Map<String, dynamic>.from(goods.get(itemId));
     final currentStock = stockFor(itemId);

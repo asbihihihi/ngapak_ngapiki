@@ -181,9 +181,8 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
-              AuthData.isSupabaseAuthEnabled
-                  ? 'Username: ${employee['username']}'
-                  : '${employee['email']}',
+              '${AuthData.isSupabaseAuthEnabled ? 'Username: ${employee['username']}' : '${employee['email']}'}'
+              '${employee['canUsePos'] == true ? ' · Kasir POS' : ''}',
             ),
             trailing: PopupMenuButton<String>(
               onSelected: (action) {
@@ -217,6 +216,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
   late final TextEditingController _usernameController;
   final _passwordController = TextEditingController();
   bool _saving = false;
+  bool _canUsePos = false;
   String? _error;
 
   @override
@@ -231,6 +231,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
           widget.employee?['email']?.toString() ??
           '',
     );
+    _canUsePos = widget.employee?['canUsePos'] == true;
   }
 
   @override
@@ -257,6 +258,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
           username: AuthData.isSupabaseAuthEnabled
               ? _usernameController.text
               : null,
+          canUsePos: _canUsePos,
         );
       } else {
         await AuthData.updateEmployee(
@@ -264,6 +266,7 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
           name: _nameController.text,
           email: _usernameController.text,
           newPassword: _passwordController.text,
+          canUsePos: _canUsePos,
         );
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -337,6 +340,17 @@ class _EmployeeFormDialogState extends State<_EmployeeFormDialog> {
                 }
                 return null;
               },
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Akses kasir POS'),
+              subtitle: const Text(
+                'Izinkan karyawan membuat transaksi penjualan.',
+              ),
+              value: _canUsePos,
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _canUsePos = value),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),

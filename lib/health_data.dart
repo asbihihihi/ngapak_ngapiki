@@ -148,8 +148,10 @@ class HealthData {
     if ('${row['id'] ?? ''}'.trim().isEmpty) {
       throw StateError('ID kambing tidak tersedia untuk mengaitkan catatan.');
     }
-    if (FarmData.isSold(row)) {
-      throw StateError('Catatan kesehatan kambing terjual tidak dapat diubah.');
+    if (!FarmData.isActive(row)) {
+      throw StateError(
+        'Catatan kesehatan kambing nonaktif tidak dapat diubah.',
+      );
     }
     _validateFields(
       type: type,

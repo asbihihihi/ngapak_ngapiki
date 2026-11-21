@@ -268,7 +268,7 @@ class _PosPageState extends State<PosPage> {
                       }
                     },
                     icon: const Icon(Icons.payment),
-                    label: const Text('Lanjut pembayaran'),
+                    label: const Text('Proses Pembayaran'),
                   ),
                 ),
               ],
@@ -635,7 +635,7 @@ class _PosPageState extends State<PosPage> {
               FilledButton.icon(
                 onPressed: _cart.isEmpty ? null : () => _openCart(all),
                 icon: const Icon(Icons.payment),
-                label: const Text('Lanjut pembayaran'),
+                label: const Text('Proses Pembayaran'),
               ),
             ],
           ),
@@ -994,12 +994,12 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
           segments: const [
             ButtonSegment(
               value: 'Cash',
-              label: Text('Cash'),
+              label: Text('Tunai'),
               icon: Icon(Icons.payments_outlined),
             ),
             ButtonSegment(
               value: 'QRIS',
-              label: Text('QRIS'),
+              label: Text('Transfer / QRIS'),
               icon: Icon(Icons.qr_code_2),
             ),
           ],
@@ -1036,8 +1036,8 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
             icon: const Icon(Icons.add_a_photo_outlined),
             label: Text(
               _proofPath == null
-                  ? 'Masukkan foto bukti QRIS'
-                  : 'Ganti foto bukti',
+                  ? 'Unggah bukti transfer (QRIS)'
+                  : 'Ganti bukti pembayaran',
             ),
           ),
           if (_proofPath != null) ...[
@@ -1062,7 +1062,7 @@ class _PosCheckoutPageState extends State<PosCheckoutPage> {
           child: FilledButton.icon(
             onPressed: _saving ? null : _pay,
             icon: const Icon(Icons.check_circle_outline),
-            label: Text(_saving ? 'Memproses...' : 'Bayar & tampilkan struk'),
+            label: Text(_saving ? 'Memproses...' : 'Selesaikan Transaksi'),
           ),
         ),
       ],

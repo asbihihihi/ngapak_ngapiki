@@ -31,6 +31,10 @@ class AuthData {
   static bool get hasOwner => SupabaseConfig.isConfigured
       ? false
       : users.values.any((user) => user['role'] == ownerRole);
+  static bool get canUsePos {
+    final user = currentUser;
+    return user?['role'] == ownerRole || user?['canUsePos'] == true;
+  }
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
 
@@ -110,6 +114,7 @@ class AuthData {
     required String email,
     required String password,
     String? username,
+    bool canUsePos = false,
   }) async {
     _requireOwner();
     if (SupabaseConfig.isConfigured) {
@@ -130,6 +135,7 @@ class AuthData {
           'name': name.trim(),
           'username': normalizedUsername,
           'password': password,
+          'can_use_pos': canUsePos,
         },
       );
       return;
@@ -149,6 +155,7 @@ class AuthData {
       'nama': name.trim(),
       'email': normalizedEmail,
       'role': employeeRole,
+      'canUsePos': canUsePos,
       ..._passwordFields(password),
       'dibuatPada': DateTime.now().toIso8601String(),
     });
@@ -159,6 +166,7 @@ class AuthData {
     required String name,
     required String email,
     String? newPassword,
+    bool? canUsePos,
   }) async {
     _requireOwner();
     if (SupabaseConfig.isConfigured) {
@@ -176,6 +184,7 @@ class AuthData {
           'employee_id': id,
           'name': name.trim(),
           'password': newPassword ?? '',
+          'can_use_pos': canUsePos,
         },
       );
       return;
@@ -200,6 +209,7 @@ class AuthData {
       ..['nama'] = name.trim()
       ..['email'] = normalizedEmail
       ..['diperbaruiPada'] = DateTime.now().toIso8601String();
+    if (canUsePos != null) updated['canUsePos'] = canUsePos;
     if (newPassword != null && newPassword.isNotEmpty) {
       updated
         ..remove('salt')
@@ -256,6 +266,18 @@ class AuthData {
     await session.put('currentUserId', user['id']);
   }
 
+  static Future<void> sendPasswordResetEmail(String email) async {
+    if (!SupabaseConfig.isConfigured) {
+      throw StateError(
+        'Pemulihan kata sandi hanya tersedia untuk akun online.',
+      );
+    }
+    final normalizedEmail = normalizeEmail(email);
+    final validation = validateNameAndEmail('Nama', normalizedEmail);
+    if (validation != null) throw ArgumentError('Masukkan email akun pemilik.');
+    await Supabase.instance.client.auth.resetPasswordForEmail(normalizedEmail);
+  }
+
   static Future<void> logout() async {
     if (SupabaseConfig.isConfigured) {
       await Supabase.instance.client.auth.signOut();
@@ -279,7 +301,7 @@ class AuthData {
     final client = Supabase.instance.client;
     final profile = await client
         .from('profiles')
-        .select('full_name, username')
+        .select('full_name, username, can_use_pos')
         .eq('id', user.id)
         .maybeSingle();
     final membership = await client
@@ -304,6 +326,7 @@ class AuthData {
           'Pengguna',
       'email': user.email ?? '',
       if (profile?['username'] is String) 'username': profile!['username'],
+      'canUsePos': profile?['can_use_pos'] == true,
       'role': membership['role'] == 'owner' ? ownerRole : employeeRole,
       'farmId': membership['farm_id'],
       if (farm is Map) 'farmName': farm['name'],
@@ -331,7 +354,7 @@ class AuthData {
     }
     final memberships = await Supabase.instance.client
         .from('farm_members')
-        .select('user_id, profiles!inner(full_name, username)')
+        .select('user_id, profiles!inner(full_name, username, can_use_pos)')
         .eq('farm_id', farmId)
         .eq('role', 'employee');
     final employees =
@@ -341,6 +364,7 @@ class AuthData {
             'id': row['user_id'],
             'nama': profile['full_name'],
             'username': profile['username'] ?? '',
+            'canUsePos': profile['can_use_pos'] == true,
           };
         }).toList()..sort(
           (a, b) => '${a['nama']}'.toLowerCase().compareTo(
@@ -420,8 +444,13 @@ class AuthData {
     return null;
   }
 
-  static String _newUserId() =>
-      'USR-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+  static String _newUserId() {
+    final random = Random.secure();
+    final randomPart = _encode(
+      List<int>.generate(16, (_) => random.nextInt(256)),
+    );
+    return 'USR-${DateTime.now().microsecondsSinceEpoch}-$randomPart';
+  }
 
   static Map<String, String> _passwordFields(String password) {
     final random = Random.secure();
